@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/chain"
 )
 
 type MixedPayloadConfig struct {

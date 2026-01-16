@@ -12,7 +12,7 @@ import (
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/chain"
 )
 
 var _ TxProvider = &exchangeBatchOrdersProvider{}

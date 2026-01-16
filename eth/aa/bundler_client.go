@@ -15,8 +15,8 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	ethclient "github.com/InjectiveLabs/chain-stresser/v2/eth/client"
-	"github.com/InjectiveLabs/chain-stresser/v2/eth/jsonrpc"
+	ethclient "github.com/biya-coin/chain-stresser/v2/eth/client"
+	"github.com/biya-coin/chain-stresser/v2/eth/jsonrpc"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 )
 

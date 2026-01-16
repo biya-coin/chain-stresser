@@ -58,7 +58,10 @@ compose-down:
 	docker compose -f chain-stresser-deploy/docker-compose.yml down
 
 run-bank-send:
-	chain-stresser tx-bank-send --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000
+	chain-stresser tx-bank-send --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000 --await=false
+
+run-bank-send-many:
+	chain-stresser tx-bank-send-many --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 100 --transactions 10 --targets 100 --await=false --rate-tps 40
 
 run-eth-send:
 	chain-stresser tx-eth-send --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000

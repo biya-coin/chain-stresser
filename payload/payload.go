@@ -3,7 +3,7 @@ package payload
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/chain"
 )
 
 type TxRequest struct {

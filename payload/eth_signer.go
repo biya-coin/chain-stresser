@@ -9,7 +9,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/chain"
 )
 
 type ethTxBuilderAndSigner struct {

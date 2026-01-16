@@ -10,7 +10,7 @@ import (
 
 	tmed25519 "github.com/cometbft/cometbft/crypto/ed25519"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/chain"
 )
 
 type GeneratorEnvironment struct {
@@ -30,19 +30,19 @@ type GeneratorEnvironment struct {
 }
 
 const (
-	bondDenom = "inj"
+	bondDenom = "byb"
 
-	// initialBalanceStaker to be 100K INJ = 100000 * 10^18 inj
+	// initialBalanceStaker to be 100K BYB = 100000 * 10^18 byb
 	initialBalanceStaker = "100000000000000000000000" + bondDenom
 
-	// initialBalanceBonded to be 10K INJ = 10000 * 10^18 inj
+	// initialBalanceBonded to be 10K BYB = 10000 * 10^18 byb
 	initialBalanceBonded = "10000000000000000000000" + bondDenom
 
-	// initialBalanceAccount to be 1M INJ = 1000000 * 10^18 inj
+	// initialBalanceAccount to be 1M BYB = 1000000 * 10^18 byb
 	initialBalanceAccount = "1000000000000000000000000" + bondDenom
 
 	// minimumGasPrices to be used for realistic bench (involving x/distribition)
-	minimumGasPrices = "1inj"
+	minimumGasPrices = "1byb"
 )
 
 func GenerateConfigs(
@@ -66,6 +66,7 @@ func GenerateConfigs(
 		EthChainID: env.EthChainID,
 		EvmEnabled: env.EvmEnabled,
 		ProdLike:   env.ProdLike,
+		BondDenom:  bondDenom,
 	})
 
 	persistentValidatorPeers := make([]string, 0, env.NumOfValidators)

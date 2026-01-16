@@ -11,7 +11,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 
-	contract "github.com/InjectiveLabs/chain-stresser/v2/eth/solidity/Counter"
+	contract "github.com/biya-coin/chain-stresser/v2/eth/solidity/Counter"
 )
 
 var _ TxProvider = &ethDeployProvider{}

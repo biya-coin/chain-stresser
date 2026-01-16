@@ -16,8 +16,8 @@ import (
 	"github.com/xlab/pace"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/eth/aa"
-	contract "github.com/InjectiveLabs/chain-stresser/v2/eth/solidity/Counter"
+	"github.com/biya-coin/chain-stresser/v2/eth/aa"
+	contract "github.com/biya-coin/chain-stresser/v2/eth/solidity/Counter"
 )
 
 var _ TxProvider = &ethUserOpProvider{}

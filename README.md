@@ -5,7 +5,7 @@ Our benchamark tool for stress testing the Injective Chain. Configures devnets o
 ## Installation
 
 ```
-git clone https://github.com/InjectiveLabs/chain-stresser.git && cd chain-stresser
+git clone https://github.com/biya-coin/chain-stresser.git && cd chain-stresser
 make install
 ```
 

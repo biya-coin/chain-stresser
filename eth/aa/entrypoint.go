@@ -5,14 +5,14 @@ import (
 	"math/big"
 	"time"
 
-	ethclient "github.com/InjectiveLabs/chain-stresser/v2/eth/client"
+	ethclient "github.com/biya-coin/chain-stresser/v2/eth/client"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	ethcmn "github.com/ethereum/go-ethereum/common"
 	ethrpc "github.com/ethereum/go-ethereum/rpc"
 	"github.com/pkg/errors"
 
-	contract_entrypoint "github.com/InjectiveLabs/chain-stresser/v2/eth/solidity/IEntryPoint"
+	contract_entrypoint "github.com/biya-coin/chain-stresser/v2/eth/solidity/IEntryPoint"
 )
 
 type Entrypoint interface {

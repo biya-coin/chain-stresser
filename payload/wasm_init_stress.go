@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/chain"
 )
 
 var (
@@ -94,7 +94,7 @@ func (p *wasmInitContractProvider) GenerateTx(
 		Label:  time.Now().Format(time.RFC3339Nano),
 		Msg:    []byte(fmt.Sprintf(initMsgTemplate, sender, sender)),
 		Funds: sdk.Coins{{
-			Denom:  "inj",
+			Denom:  "byb",
 			Amount: math.NewInt(1),
 		}},
 	}

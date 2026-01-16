@@ -31,14 +31,14 @@ const (
 	DefaultVersion = "v1.13.0"
 
 	// DefaultBondDenom is the default bond denomination
-	DefaultBondDenom = "inj"
+	DefaultBondDenom = "byb"
 
 	// DefaultChainID is the default chain ID used in the genesis file
 	// Note that the chain ID must end with a number, to allow EVM chain IDs to be used
-	DefaultChainID = "stressinj-1337"
+	DefaultChainID = "stressbyb-801"
 
 	// DefaultEthChainID is the default EVM chain ID used in the genesis file
-	DefaultEthChainID = 1337
+	DefaultEthChainID = 801
 )
 
 type GenesisConfig struct {

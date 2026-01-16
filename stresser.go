@@ -16,10 +16,10 @@ import (
 	"github.com/xlab/pace"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
-	"github.com/InjectiveLabs/chain-stresser/v2/payload"
-	"github.com/InjectiveLabs/chain-stresser/v2/pkg/ratelimit"
-	"github.com/InjectiveLabs/chain-stresser/v2/replay"
+	"github.com/biya-coin/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/payload"
+	"github.com/biya-coin/chain-stresser/v2/pkg/ratelimit"
+	"github.com/biya-coin/chain-stresser/v2/replay"
 )
 
 // StressConfig is the config for stress runner

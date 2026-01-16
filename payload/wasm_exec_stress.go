@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/chain"
 )
 
 var _ TxProvider = &wasmExecContractProvider{}
@@ -92,7 +92,7 @@ func (p *wasmExecContractProvider) GenerateTx(
 		Contract: p.contractAddress,
 		Msg:      []byte(fmt.Sprintf(`{"transfer":{"recipient": %q,"amount": "%d"}}`, to, amount)),
 		Funds: sdk.Coins{{
-			Denom:  "inj",
+			Denom:  "byb",
 			Amount: math.NewInt(1),
 		}},
 	}

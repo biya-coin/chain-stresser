@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	contract "github.com/InjectiveLabs/chain-stresser/v2/eth/solidity/Counter"
+	contract "github.com/biya-coin/chain-stresser/v2/eth/solidity/Counter"
 )
 
 var _ TxProvider = &ethCallProvider{}

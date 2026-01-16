@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"time"
 
-	ethclient "github.com/InjectiveLabs/chain-stresser/v2/eth/client"
+	ethclient "github.com/biya-coin/chain-stresser/v2/eth/client"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -15,9 +15,9 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/xlab/suplog"
 
-	contract_entrypoint "github.com/InjectiveLabs/chain-stresser/v2/eth/solidity/IEntryPoint"
-	contract_light_account "github.com/InjectiveLabs/chain-stresser/v2/eth/solidity/LightAccount"
-	contract_light_account_factory "github.com/InjectiveLabs/chain-stresser/v2/eth/solidity/LightAccountFactory"
+	contract_entrypoint "github.com/biya-coin/chain-stresser/v2/eth/solidity/IEntryPoint"
+	contract_light_account "github.com/biya-coin/chain-stresser/v2/eth/solidity/LightAccount"
+	contract_light_account_factory "github.com/biya-coin/chain-stresser/v2/eth/solidity/LightAccountFactory"
 )
 
 type LightAccount interface {

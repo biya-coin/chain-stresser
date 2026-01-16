@@ -14,16 +14,16 @@ import (
 	"github.com/xlab/pace"
 	log "github.com/xlab/suplog"
 
-	stresser "github.com/InjectiveLabs/chain-stresser/v2"
-	"github.com/InjectiveLabs/chain-stresser/v2/chain"
-	"github.com/InjectiveLabs/chain-stresser/v2/payload"
-	"github.com/InjectiveLabs/chain-stresser/v2/replay"
+	stresser "github.com/biya-coin/chain-stresser/v2"
+	"github.com/biya-coin/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/payload"
+	"github.com/biya-coin/chain-stresser/v2/replay"
 )
 
 const (
-	defaultChainID       = "stressinj-1337"
-	defaultEthChainID    = 1337
-	defaultMinGasPrice   = "1inj"
+	defaultChainID       = "stressbiya-801"
+	defaultEthChainID    = 801
+	defaultMinGasPrice   = "1byb"
 	defaultNumOfAccounts = 1000
 	defaultNumOfTx       = 100
 
