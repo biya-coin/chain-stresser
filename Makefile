@@ -99,10 +99,13 @@ eth-counter-get:
 eth-counter-deploy:
 	etherman -N Counter -S ./eth/solidity/Counter.sol -P 58aeee3e3848e52689b9edca5fccba193c755b02686e6fc34fd13596e5521ebb deploy 0x00
 
+eth-erc20-setup:
+	chain-stresser deploy-erc20 --staker-key=$(STAKER_KEY)
+
 cook:
 	rsync -r ../chain-stresser cooking:~/go/src/
 
 .PHONY: lint install solidity cook
 .PHONY: gen-0 val-0-start val-0-clean
 .PHONY: run-bank-send run-eth-send run-eth-call
-.PHONY: eth-counter-get
+.PHONY: eth-counter-get eth-erc20-setup

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math/big"
 	"os"
+	"path/filepath"
 	"time"
 
 	ethcmn "github.com/ethereum/go-ethereum/common"
@@ -16,6 +17,7 @@ import (
 
 	stresser "github.com/biya-coin/chain-stresser/v2"
 	"github.com/biya-coin/chain-stresser/v2/chain"
+	"github.com/biya-coin/chain-stresser/v2/deploy"
 	"github.com/biya-coin/chain-stresser/v2/payload"
 	"github.com/biya-coin/chain-stresser/v2/replay"
 )
@@ -608,6 +610,75 @@ func main() {
 
 	rootCmd.AddCommand(txnsReplayCmd)
 
+	// Deploy ERC20 contracts command
+	var (
+		deployRPCURL       string
+		deployStakerKey    string
+		deployGasLimit     uint64
+		deployGasPrice     *big.Int
+		deployAccountsFile string
+		deployGasPriceStr  string
+	)
+
+	deployCmd := &cobra.Command{
+		Use:   "deploy-erc20",
+		Short: "部署 ERC20、EntryPoint 和 Factory 合约",
+		Long: `部署 ERC20、EntryPoint 和 Factory 合约到链上。
+
+如果没有提供私钥，将从 chain-stresser-deploy/instances/0/accounts.json 读取第一个私钥。`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// 解析 gas price
+			gasPrice := deployGasPrice
+			if deployGasPriceStr != "" {
+				var ok bool
+				gasPrice, ok = new(big.Int).SetString(deployGasPriceStr, 10)
+				if !ok {
+					return errors.New("无效的 gas price")
+				}
+			}
+
+			// 构建部署配置
+			cfg := deploy.Config{
+				RPCURL:       deployRPCURL,
+				StakerKey:    deployStakerKey,
+				GasLimit:     deployGasLimit,
+				GasPrice:     gasPrice,
+				AccountsFile: deployAccountsFile,
+			}
+
+			// 执行部署
+			result, err := deploy.DeployERC20Contracts(cfg)
+			if err != nil {
+				return err
+			}
+
+			// 保存到 build 目录
+			projectRoot, err := getProjectRoot()
+			if err != nil {
+				log.Errorf("获取项目根目录失败: %v", err)
+			} else {
+				buildDir := filepath.Join(projectRoot, "build")
+				envFile := filepath.Join(buildDir, "erc20_contracts.env")
+				if err := deploy.SaveToFile(result, envFile); err != nil {
+					log.Errorf("保存文件失败: %v", err)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	deployCmd.Flags().StringVar(&deployRPCURL, "rpc-url", "http://127.0.0.1:8545", "RPC 端点地址")
+	deployCmd.Flags().StringVar(&deployStakerKey, "staker-key", "", "部署者私钥（hex 格式）。如果不提供，将从 accounts.json 读取")
+	deployCmd.Flags().Uint64Var(&deployGasLimit, "gas-limit", 70000000, "Gas limit (默认: 70000000，链最大限制: 75000000)")
+	deployCmd.Flags().StringVar(&deployAccountsFile, "accounts-file", "", "accounts.json 文件路径（默认: chain-stresser-deploy/instances/0/accounts.json）")
+
+	// 默认 gas price: 3000000 wei
+	deployGasPrice = big.NewInt(3000000)
+	deployCmd.Flags().StringVar(&deployGasPriceStr, "gas-price", "3000000", "Gas price (wei)")
+
+	rootCmd.AddCommand(deployCmd)
+
 	orPanic(rootCmd.Execute())
 }
 
@@ -709,4 +780,26 @@ func applyStresserConfigFromYAML(
 	}
 
 	return nil
+}
+
+func getProjectRoot() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	// 查找 go.mod 文件
+	dir := wd
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+
+	return wd, nil
 }
