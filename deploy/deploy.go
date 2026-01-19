@@ -139,6 +139,43 @@ func SaveToFile(result *DeployResult, outputFile string) error {
 	return nil
 }
 
+// LoadFromFile 从文件加载部署结果
+func LoadFromFile(filePath string) (*DeployResult, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "读取文件失败: %s", filePath)
+	}
+
+	result := &DeployResult{}
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		switch key {
+		case "TOKEN_ADDR":
+			result.TokenAddr = common.HexToAddress(value)
+		case "ENTRYPOINT_ADDR":
+			result.EntryPointAddr = common.HexToAddress(value)
+		case "FACTORY_ADDR":
+			result.FactoryAddr = common.HexToAddress(value)
+		}
+	}
+
+	if result.TokenAddr == (common.Address{}) || result.FactoryAddr == (common.Address{}) {
+		return nil, errors.New("合约地址不完整")
+	}
+
+	return result, nil
+}
+
 func getStakerKey(stakerKey, accountsFile string) (string, error) {
 	if stakerKey != "" {
 		// 移除 0x 前缀

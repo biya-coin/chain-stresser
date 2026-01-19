@@ -80,6 +80,16 @@ contract ERC20 {
         emit Transfer(from, to, amount);
     }
 
+    function mint(address to, uint256 amount) public {
+        _mint(to, amount);
+    }
+
+    function batchMint(address[] memory recipients, uint256 amount) public {
+        for (uint256 i = 0; i < recipients.length; i++) {
+            _mint(recipients[i], amount);
+        }
+    }
+
     function _mint(address to, uint256 amount) internal {
         require(to != address(0), "ERC20: mint to the zero address");
 

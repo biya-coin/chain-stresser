@@ -6,9 +6,13 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	ethcmn "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/xlab/closer"
@@ -271,6 +275,143 @@ func main() {
 	}
 	rootCmd.AddCommand(txEthDeployCmd)
 
+	var (
+		erc20ContractAddr          string
+		recipientAddr              string
+		ethRPCURL                  string
+		erc20EntrypointAddress     string
+		erc20BeneficiaryAddress    string
+		erc20AccountFactoryAddress string
+		contractsEnvFile           string
+	)
+
+	txEthERC20UserOpCmd := &cobra.Command{
+		Use:   "tx-eth-erc20-userop",
+		Short: "Run stresstest with ERC20 token transfer UserOp transactions (bundled via EntryPoint).",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if verboseOutput {
+				log.DefaultLogger.SetLevel(log.DebugLevel)
+			}
+
+			// 从 build/erc20_contracts.env 读取合约地址（如果没有通过参数指定）
+			if contractsEnvFile == "" {
+				projectRoot, err := getProjectRoot()
+				if err == nil {
+					contractsEnvFile = filepath.Join(projectRoot, "build", "erc20_contracts.env")
+				}
+			}
+
+			if erc20ContractAddr == "" || erc20EntrypointAddress == "" || erc20AccountFactoryAddress == "" {
+				if contractsEnvFile != "" {
+					result, err := deploy.LoadFromFile(contractsEnvFile)
+					if err == nil {
+						if erc20ContractAddr == "" {
+							erc20ContractAddr = result.TokenAddr.Hex()
+						}
+						if erc20EntrypointAddress == "" {
+							erc20EntrypointAddress = result.EntryPointAddr.Hex()
+						}
+						if erc20AccountFactoryAddress == "" {
+							erc20AccountFactoryAddress = result.FactoryAddr.Hex()
+						}
+						log.Infof("✓ 已从 %s 读取合约配置", contractsEnvFile)
+					}
+				}
+			}
+
+			// 验证必需参数
+			if erc20ContractAddr == "" {
+				return errors.New("❌ 错误: 缺少 ERC20 合约地址\n请先运行: make eth-erc20-setup\n或使用 --erc20-address 参数")
+			}
+			if erc20EntrypointAddress == "" {
+				return errors.New("❌ 错误: 缺少 EntryPoint 合约地址\n请先运行: make eth-erc20-setup\n或使用 --entrypoint-address 参数")
+			}
+			if erc20AccountFactoryAddress == "" {
+				return errors.New("❌ 错误: 缺少 Factory 合约地址\n请先运行: make eth-erc20-setup\n或使用 --factory-address 参数")
+			}
+			if recipientAddr == "" {
+				return errors.New("--recipient-address is required")
+			}
+
+			// 打印配置信息
+			log.Info("步骤: 运行 ERC20 UserOp 压测 (通过 EntryPoint 捆绑交易)...")
+			log.Info("==========================================")
+			log.Infof("ERC20 Token:  %s", erc20ContractAddr)
+			log.Infof("EntryPoint:   %s", erc20EntrypointAddress)
+			log.Infof("Factory:      %s", erc20AccountFactoryAddress)
+			log.Infof("接收地址:     %s", recipientAddr)
+			log.Infof("账户数:       %d", numOfAccounts)
+			log.Infof("每账户交易:   %d", stressCfg.NumOfTransactions)
+			log.Info("")
+
+			// Debug: 验证地址是否正确
+			log.Debugf("[DEBUG] erc20EntrypointAddress 变量值: %s", erc20EntrypointAddress)
+			log.Debugf("[DEBUG] erc20AccountFactoryAddress 变量值: %s", erc20AccountFactoryAddress)
+			log.Debugf("[DEBUG] erc20ContractAddr 变量值: %s", erc20ContractAddr)
+
+			// 查询压测前余额
+			client, err := ethclient.Dial(ethRPCURL)
+			if err != nil {
+				log.Warningf("连接 RPC 失败，跳过余额查询: %v", err)
+			} else {
+				balanceBefore, err := queryERC20Balance(client, erc20ContractAddr, recipientAddr)
+				if err != nil {
+					log.Warningf("查询压测前余额失败: %v", err)
+				} else {
+					log.Infof("压测前接收地址余额: %s tokens", formatTokenAmount(balanceBefore))
+				}
+				log.Info("")
+			}
+
+			orPanic(readAccounts(&stressCfg, accountFile, numOfAccounts))
+
+			userOpsSignedPace := pace.New("userops signed", 1*time.Minute, stresser.NewPaceReporter(log.DefaultLogger))
+
+			ethERC20UserOpProvider, err := payload.NewEthERC20UserOpProvider(
+				ethRPCURL,
+				big.NewInt(int64(stressCfg.EthChainID)),
+				stressCfg.MinGasPrice,
+				userOpsSignedPace,
+				ethcmn.HexToAddress(erc20EntrypointAddress),
+				ethcmn.HexToAddress(erc20BeneficiaryAddress),
+				ethcmn.HexToAddress(erc20AccountFactoryAddress),
+				ethcmn.HexToAddress(erc20ContractAddr),
+				ethcmn.HexToAddress(recipientAddr),
+			)
+			if err != nil {
+				return errors.Wrap(err, "failed to initiate eth erc20 userop stress provider")
+			}
+
+			if err := stresser.Stress(rootCtx, stressCfg, ethERC20UserOpProvider); err != nil {
+				log.Errorf("❌ benchmark failed:\n\n%s", err)
+				os.Exit(-1)
+			}
+
+			// 查询压测后余额
+			log.Info("")
+			if client != nil {
+				balanceAfter, err := queryERC20Balance(client, erc20ContractAddr, recipientAddr)
+				if err != nil {
+					log.Warningf("查询压测后余额失败: %v", err)
+				} else {
+					log.Infof("压测后接收地址余额: %s tokens", formatTokenAmount(balanceAfter))
+				}
+				client.Close()
+			}
+			log.Info("")
+
+			return nil
+		},
+	}
+	txEthERC20UserOpCmd.Flags().StringVar(&erc20ContractAddr, "erc20-address", "", "ERC20 token contract address (如不提供，从 build/erc20_contracts.env 读取)")
+	txEthERC20UserOpCmd.Flags().StringVar(&recipientAddr, "recipient-address", "0x0000000000000000000000000000000000000001", "Recipient address for token transfers")
+	txEthERC20UserOpCmd.Flags().StringVar(&ethRPCURL, "eth-rpc-url", "http://127.0.0.1:8545", "Ethereum RPC URL")
+	txEthERC20UserOpCmd.Flags().StringVar(&erc20EntrypointAddress, "entrypoint-address", "", "EntryPoint contract address (如不提供，从 build/erc20_contracts.env 读取)")
+	txEthERC20UserOpCmd.Flags().StringVar(&erc20BeneficiaryAddress, "beneficiary-address", "0x0000000000000000000000000000000000000000", "Beneficiary address for UserOp fees")
+	txEthERC20UserOpCmd.Flags().StringVar(&erc20AccountFactoryAddress, "factory-address", "", "Account Factory contract address (如不提供，从 build/erc20_contracts.env 读取)")
+	txEthERC20UserOpCmd.Flags().StringVar(&contractsEnvFile, "contracts-env", "", "合约配置文件路径 (默认: build/erc20_contracts.env)")
+	rootCmd.AddCommand(txEthERC20UserOpCmd)
+
 	var ethInternalCallIterations uint64
 	txEthInternalCallCmd := &cobra.Command{
 		Use:   "tx-eth-internal-call",
@@ -303,11 +444,10 @@ func main() {
 	rootCmd.AddCommand(txEthInternalCallCmd)
 
 	var (
-		ethRPCURL             string
-		entrypointAddress     string
-		beneficiaryAddress    string
-		accountFactoryAddress string
-		counterContractAddr   string
+		counterContractAddr         string
+		userOpEntrypointAddress     string
+		userOpBeneficiaryAddress    string
+		userOpAccountFactoryAddress string
 	)
 
 	txEthUserOpCmd := &cobra.Command{
@@ -327,9 +467,9 @@ func main() {
 				big.NewInt(stressCfg.EthChainID),
 				stressCfg.MinGasPrice,
 				userOpsSignedPace,
-				ethcmn.HexToAddress(entrypointAddress),
-				ethcmn.HexToAddress(beneficiaryAddress),
-				ethcmn.HexToAddress(accountFactoryAddress),
+				ethcmn.HexToAddress(userOpEntrypointAddress),
+				ethcmn.HexToAddress(userOpBeneficiaryAddress),
+				ethcmn.HexToAddress(userOpAccountFactoryAddress),
 				ethcmn.HexToAddress(counterContractAddr),
 			)
 			if err != nil {
@@ -346,9 +486,9 @@ func main() {
 	}
 
 	txEthUserOpCmd.Flags().StringVar(&ethRPCURL, "eth-rpc-url", "http://127.0.0.1:8545", "Ethereum RPC URL")
-	txEthUserOpCmd.Flags().StringVar(&entrypointAddress, "entrypoint-address", "0x586AaA4d77955b36784cADf6D9D617b952d45DA1", "EntryPoint contract address")
-	txEthUserOpCmd.Flags().StringVar(&beneficiaryAddress, "beneficiary-address", "0x0000000000000000000000000000000000000000", "Beneficiary address for UserOp fees")
-	txEthUserOpCmd.Flags().StringVar(&accountFactoryAddress, "factory-address", "0x0B3809304F2bAad3E0d0810B98Cc7e505C06ce89", "Account Factory contract address")
+	txEthUserOpCmd.Flags().StringVar(&userOpEntrypointAddress, "entrypoint-address", "0x586AaA4d77955b36784cADf6D9D617b952d45DA1", "EntryPoint contract address")
+	txEthUserOpCmd.Flags().StringVar(&userOpBeneficiaryAddress, "beneficiary-address", "0x0000000000000000000000000000000000000000", "Beneficiary address for UserOp fees")
+	txEthUserOpCmd.Flags().StringVar(&userOpAccountFactoryAddress, "factory-address", "0x0B3809304F2bAad3E0d0810B98Cc7e505C06ce89", "Account Factory contract address")
 	txEthUserOpCmd.Flags().StringVar(&counterContractAddr, "counter-address", "0x590d9D4654FC262BFE72d115355db2aEb7DB902f", "Counter contract address")
 	rootCmd.AddCommand(txEthUserOpCmd)
 
@@ -620,12 +760,18 @@ func main() {
 		deployGasPriceStr  string
 	)
 
+	var (
+		deployMintAmount  string
+		deployMintEnabled bool
+	)
+
 	deployCmd := &cobra.Command{
 		Use:   "deploy-erc20",
 		Short: "部署 ERC20、EntryPoint 和 Factory 合约",
 		Long: `部署 ERC20、EntryPoint 和 Factory 合约到链上。
 
-如果没有提供私钥，将从 chain-stresser-deploy/instances/0/accounts.json 读取第一个私钥。`,
+如果没有提供私钥，将从 chain-stresser-deploy/instances/0/accounts.json 读取第一个私钥。
+部署成功后，可以选择为 Light Account 铸造代币。`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// 解析 gas price
 			gasPrice := deployGasPrice
@@ -664,6 +810,39 @@ func main() {
 				}
 			}
 
+			// 如果启用了铸造，执行铸造操作
+			if deployMintEnabled {
+				log.Info("开始为 Light Account 铸造代币...")
+
+				// 解析铸造数量（默认 100000 * 10^18）
+				mintAmount := big.NewInt(0)
+				if deployMintAmount != "" {
+					var ok bool
+					mintAmount, ok = mintAmount.SetString(deployMintAmount, 10)
+					if !ok {
+						return errors.New("无效的铸造数量")
+					}
+				} else {
+					// 默认值: 100000 * 10^18
+					mintAmount = new(big.Int).Mul(big.NewInt(100000), new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+				}
+
+				mintCfg := deploy.MintConfig{
+					RPCURL:        deployRPCURL,
+					TokenAddr:     result.TokenAddr,
+					FactoryAddr:   result.FactoryAddr,
+					StakerKey:     deployStakerKey,
+					AccountsFile:  deployAccountsFile,
+					AmountPerAcct: mintAmount,
+					GasLimit:      deployGasLimit,
+					GasPrice:      gasPrice,
+				}
+
+				if err := deploy.MintToLightAccounts(mintCfg); err != nil {
+					return errors.Wrap(err, "铸造代币失败")
+				}
+			}
+
 			return nil
 		},
 	}
@@ -676,6 +855,10 @@ func main() {
 	// 默认 gas price: 3000000 wei
 	deployGasPrice = big.NewInt(3000000)
 	deployCmd.Flags().StringVar(&deployGasPriceStr, "gas-price", "3000000", "Gas price (wei)")
+
+	// 铸造相关参数
+	deployCmd.Flags().BoolVar(&deployMintEnabled, "mint", false, "部署后为 Light Account 铸造代币")
+	deployCmd.Flags().StringVar(&deployMintAmount, "mint-amount", "", "每个账户的铸造数量（wei，默认: 100000000000000000000000，即 100000 tokens）")
 
 	rootCmd.AddCommand(deployCmd)
 
@@ -724,6 +907,55 @@ func strOrPanic(out string, err error) string {
 	}
 
 	return out
+}
+
+// queryERC20Balance 查询指定地址的 ERC20 代币余额
+func queryERC20Balance(client *ethclient.Client, tokenAddr, accountAddr string) (*big.Int, error) {
+	// ERC20 balanceOf ABI
+	erc20ABIJSON := `[{"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]`
+
+	contractABI, err := abi.JSON(strings.NewReader(erc20ABIJSON))
+	if err != nil {
+		return nil, errors.Wrap(err, "解析 ERC20 ABI 失败")
+	}
+
+	// 打包 balanceOf 调用
+	callData, err := contractABI.Pack("balanceOf", ethcmn.HexToAddress(accountAddr))
+	if err != nil {
+		return nil, errors.Wrap(err, "打包 balanceOf 调用失败")
+	}
+
+	// 调用合约
+	result, err := client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &[]ethcmn.Address{ethcmn.HexToAddress(tokenAddr)}[0],
+		Data: callData,
+	}, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "调用合约失败")
+	}
+
+	// 解包结果
+	var balance *big.Int
+	err = contractABI.UnpackIntoInterface(&balance, "balanceOf", result)
+	if err != nil {
+		return nil, errors.Wrap(err, "解包结果失败")
+	}
+
+	return balance, nil
+}
+
+// formatTokenAmount 格式化代币数量（从 wei 转换为 tokens）
+func formatTokenAmount(amount *big.Int) string {
+	if amount == nil {
+		return "0"
+	}
+
+	// 将 wei 转换为 tokens (除以 10^18)
+	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	tokens := new(big.Float).SetInt(amount)
+	tokens.Quo(tokens, new(big.Float).SetInt(divisor))
+
+	return tokens.Text('f', 2)
 }
 
 func applyStresserConfigFromYAML(

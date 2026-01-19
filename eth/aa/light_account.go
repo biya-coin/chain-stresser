@@ -196,10 +196,21 @@ func (la *lightAccount) Address(ctx context.Context) (ethcmn.Address, error) {
 		return la.accountAddress, nil
 	}
 
-	res, err := la.ethClient.CallContract(context.Background(), ethereum.CallMsg{
+	// 使用 getAddress 而不是 createAccount 来获取预计算的地址
+	saltBig := ethcmn.Big0
+	if la.salt != 0 {
+		saltBig = big.NewInt(int64(la.salt))
+	}
+
+	callData, err := la.accountFactoryABI.Pack("getAddress", la.eoaOwner, saltBig)
+	if err != nil {
+		return ethcmn.Address{}, errors.Wrap(err, "failed to pack getAddress call data")
+	}
+
+	res, err := la.ethClient.CallContract(ctx, ethereum.CallMsg{
 		From: la.eoaOwner,
 		To:   &la.accountFactoryAddress,
-		Data: la.createAccountCallData(la.eoaOwner, la.salt),
+		Data: callData,
 	}, nil)
 
 	if err != nil {
