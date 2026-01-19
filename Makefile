@@ -114,6 +114,12 @@ eth-erc20-userop-stress:
 		--recipient-address 0x0000000000000000000000000000000000000001 \
 		--await=false
 
+create-markets:
+	go run scripts/create_markets.go
+
+list-markets:
+	go run scripts/list_markets.go
+
 cook:
 	rsync -r ../chain-stresser cooking:~/go/src/
 

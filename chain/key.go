@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"os"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -101,4 +103,44 @@ func initCryptoCodec() *codec.ProtoCodec {
 	registry := chainsdk.NewInterfaceRegistry()
 	crypto_cdc.RegisterInterfaces(registry)
 	return codec.NewProtoCodec(registry)
+}
+
+// SaveStakerKeyToKeyringFile 将验证者的staker账户私钥保存到keyring文件（test模式）
+func SaveStakerKeyToKeyringFile(
+	keyringDir string,
+	keyName string,
+	stakerPrivateKey Secp256k1PrivateKey,
+) error {
+	// 创建keyring目录
+	if err := os.MkdirAll(keyringDir, 0o755); err != nil {
+		return err
+	}
+
+	// 使用test模式创建keyring
+	// keyring.New参数: appName, backend, rootDir, userInput, codec, options...
+	kb, err := keyring.New(
+		"injectived", // appName
+		keyring.BackendTest,
+		keyringDir,
+		nil, // userInput (nil for test backend)
+		cryptoCdc,
+		hd.EthSecp256k1Option(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// 将私钥转换为加密格式
+	privKey := &ethsecp256k1.PrivKey{
+		Key: stakerPrivateKey,
+	}
+
+	encKey := crypto.EncryptArmorPrivKey(privKey, "test", privKey.Type())
+
+	// 导入私钥到keyring
+	if err := kb.ImportPrivKey(keyName, encKey, "test"); err != nil {
+		return err
+	}
+
+	return nil
 }
