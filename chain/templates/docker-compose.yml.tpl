@@ -1,11 +1,11 @@
 services:
 {{- range $i, $node := .Nodes}}
-  injectived{{$i}}:
+  biyachaind{{$i}}:
     container_name: injstress-{{$node.Moniker}}
     image: "{{$.Image}}"
     environment:
       - DEBUG={{if eq $.Debug true}}1{{else}}0{{end}}
-      - NODE_HOME=/root/.injectived
+      - NODE_HOME=/root/.biyachaind
       - CHAIN_ID={{$.ChainID}}
       - MONIKER={{$node.Moniker}}
     cap_add:
@@ -27,17 +27,17 @@ services:
       {{- end}}
     {{- end}}
     volumes:
-      - {{$node.Home}}:/root/.injectived:Z
+      - {{$node.Home}}:/root/.biyachaind:Z
     networks:
       localnet:
         ipv4_address: {{$node.IPAddr}}
     {{- if $node.DependsOn}}
     depends_on:
       {{- range $dep := $node.DependsOn}}
-      - injectived{{$dep}}
+      - biyachaind{{$dep}}
       {{- end}}
     {{- end}}
-    command: injectived --home=/root/.injectived start
+    command: biyachaind --home=/root/.biyachaind start
 {{- end}}
 
 networks:

@@ -36,7 +36,7 @@ func GenerateDockerCompose(
 	cfg := &DockerComposeConfig{
 		Image:   image,
 		Debug:   debug,
-		LogFile: "injectived.log",
+		LogFile: "biyachaind.log",
 		ChainID: chainID,
 		Nodes:   nodes,
 		Network: DockerComposeNetwork{

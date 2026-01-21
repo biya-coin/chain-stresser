@@ -25,28 +25,28 @@ gen-4-2:
 	chain-stresser generate --accounts-num 1000 --validators 4 --sentries 2 --instances 1 --evm true
 
 val-0-start:
-	injectived --home="./chain-stresser-deploy/validators/0" start
+	biyachaind --home="./chain-stresser-deploy/validators/0" start
 
 val-0-clean:
-	injectived --home="./chain-stresser-deploy/validators/0" tendermint unsafe-reset-all
+	biyachaind --home="./chain-stresser-deploy/validators/0" tendermint unsafe-reset-all
 
 val-1-start:
-	injectived --home="./chain-stresser-deploy/validators/1" start
+	biyachaind --home="./chain-stresser-deploy/validators/1" start
 
 val-1-clean:
-	injectived --home="./chain-stresser-deploy/validators/1" tendermint unsafe-reset-all
+	biyachaind --home="./chain-stresser-deploy/validators/1" tendermint unsafe-reset-all
 
 val-2-start:
-	injectived --home="./chain-stresser-deploy/validators/2" start
+	biyachaind --home="./chain-stresser-deploy/validators/2" start
 
 val-2-clean:
-	injectived --home="./chain-stresser-deploy/validators/2" tendermint unsafe-reset-all
+	biyachaind --home="./chain-stresser-deploy/validators/2" tendermint unsafe-reset-all
 
 val-3-start:
-	injectived --home="./chain-stresser-deploy/validators/3" start
+	biyachaind --home="./chain-stresser-deploy/validators/3" start
 
 val-3-clean:
-	injectived --home="./chain-stresser-deploy/validators/3" tendermint unsafe-reset-all
+	biyachaind --home="./chain-stresser-deploy/validators/3" tendermint unsafe-reset-all
 
 gen-4-native:
 	chain-stresser generate --accounts-num 1000 --validators 4 --sentries 0 --instances 1 --evm true --native

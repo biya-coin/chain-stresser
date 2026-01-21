@@ -119,7 +119,7 @@ func SaveStakerKeyToKeyringFile(
 	// 使用test模式创建keyring
 	// keyring.New参数: appName, backend, rootDir, userInput, codec, options...
 	kb, err := keyring.New(
-		"injectived", // appName
+		"biyachaind", // appName
 		keyring.BackendTest,
 		keyringDir,
 		nil, // userInput (nil for test backend)

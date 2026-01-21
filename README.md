@@ -16,7 +16,7 @@ Usage:
   chain-stresser [command]
 
 Available Commands:
-  generate     Generates all the config files required to start injectived cluster with state for stress testing.
+  generate     Generates all the config files required to start biyachaind cluster with state for stress testing.
   tx-bank-send Run stresstest with x/bank.MsgSend transactions.
   tx-eth-call  Run stresstest with eth contract call transactions.
   tx-eth-send  Run stresstest with eth value send transactions.
@@ -28,7 +28,7 @@ Flags:
       --chain-id string        Expected ID of the chain. (default "stressinj-1337")
   -h, --help                   help for chain-stresser
       --min-gas-price string   Minimum gas price to pay for each transaction. (default "1inj")
-      --node-addr string       Address of a injectived node RPC to connect to. (default "localhost:26657")
+      --node-addr string       Address of a biyachaind node RPC to connect to. (default "localhost:26657")
       --rate-tps float         Rate limit transactions per second. Example: 200 for 200 TPS, 99.5 for fractional rates. 0 = no limit.
       --rate-bytes uint        Rate limit transaction bandwidth in bytes per second. Example: 50000 for 50KB/sec. 0 = no limit.
       --rate-gas uint          Rate limit gas consumption per second. Example: 1000000 for 1M gas/sec. 0 = no limit.
@@ -49,7 +49,7 @@ chain-stresser generate --accounts-num 1000 --validators 1 --sentries 0 --instan
 Run local validator node with this config:
 
 ```
-injectived --home="./chain-stresser-deploy/validators/0" start
+biyachaind --home="./chain-stresser-deploy/validators/0" start
 ```
 
 Run a stress test against this node (in separate tab):
