@@ -132,9 +132,7 @@ func GenerateConfigs(
 		genesis.AddAccount(stakerPublicKey.Address(), initialBalanceStaker)
 		genesis.AddValidator(validatorPrivateKey.PubKey(), stakerPrivateKey, initialBalanceBonded)
 
-		// 保存验证者的staker账户密钥到keyring文件（test模式）
-		keyringDir := filepath.Join(valDir)
-		if err := chain.SaveStakerKeyToKeyringFile(keyringDir, "validator", stakerPrivateKey); err != nil {
+		if err := chain.SaveStakerKeyToKeyringFile(valDir, "validator", stakerPrivateKey); err != nil {
 			panic(fmt.Errorf("保存验证者staker账户密钥失败: %v", err))
 		}
 	}

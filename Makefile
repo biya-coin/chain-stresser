@@ -115,10 +115,10 @@ eth-erc20-userop-stress:
 		--await=false
 
 create-markets:
-	go run scripts/create_markets.go
+	go run scripts/create-markets/create_markets.go
 
 list-markets:
-	go run scripts/list_markets.go
+	go run scripts/list-markets/list_markets.go
 
 cook:
 	rsync -r ../chain-stresser cooking:~/go/src/
