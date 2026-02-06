@@ -494,6 +494,7 @@ func main() {
 
 	var spotMarketIDs []string
 	var derivativeMarketIDs []string
+	var ordersPerMarket int
 
 	txExchangeBatchOrdersCmd := &cobra.Command{
 		Use:   "tx-exchange-batch-orders",
@@ -505,7 +506,7 @@ func main() {
 
 			orPanic(readAccounts(&stressCfg, accountFile, numOfAccounts))
 
-			exchangeBatchOrdersProvider, err := payload.NewExchangeBatchOrdersProvider(stressCfg.MinGasPrice, spotMarketIDs, derivativeMarketIDs)
+			exchangeBatchOrdersProvider, err := payload.NewExchangeBatchOrdersProvider(stressCfg.MinGasPrice, spotMarketIDs, derivativeMarketIDs, ordersPerMarket)
 			if err != nil {
 				return errors.Wrap(err, "failed to initate exchange batch orders stress provider")
 			}
@@ -518,8 +519,9 @@ func main() {
 			return nil
 		},
 	}
-	txExchangeBatchOrdersCmd.Flags().StringSliceVar(&spotMarketIDs, "spot-market-ids", []string{"0x1422a13427d5eabd4d8de7907c8340f7e58cb15553a9fd4ad5c90406561886f9"}, "Comma-separated list of spot market IDs to update.")
-	txExchangeBatchOrdersCmd.Flags().StringSliceVar(&derivativeMarketIDs, "derivative-market-ids", []string{"0x1422a13427d5eabd4d8de7907c8340f7e58cb15553a9fd4ad5c90406561886f9"}, "Comma-separated list of derivative market IDs to update.")
+	txExchangeBatchOrdersCmd.Flags().StringSliceVar(&spotMarketIDs, "spot-market-ids", []string{}, "Comma-separated list of spot market IDs to update.")
+	txExchangeBatchOrdersCmd.Flags().StringSliceVar(&derivativeMarketIDs, "derivative-market-ids", []string{}, "Comma-separated list of derivative market IDs to update.")
+	txExchangeBatchOrdersCmd.Flags().IntVar(&ordersPerMarket, "orders-per-market", 1, "Number of orders to create per market (default: 1).")
 	rootCmd.AddCommand(txExchangeBatchOrdersCmd)
 
 	txWasmStoreCodeCmd := &cobra.Command{

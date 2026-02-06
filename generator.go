@@ -31,6 +31,10 @@ type GeneratorEnvironment struct {
 
 const (
 	bondDenom = "byb"
+	// USDT peggy denom
+	usdtDenom = "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360"
+	// BYB/USDT market ID
+	bybUsdtMarketID = "0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5"
 
 	// initialBalanceStaker to be 100K BYB = 100000 * 10^18 byb
 	initialBalanceStaker = "100000000000000000000000" + bondDenom
@@ -38,8 +42,11 @@ const (
 	// initialBalanceBonded to be 10K BYB = 10000 * 10^18 byb
 	initialBalanceBonded = "10000000000000000000000" + bondDenom
 
-	// initialBalanceAccount to be 1M BYB = 1000000 * 10^18 byb
-	initialBalanceAccount = "1000000000000000000000000" + bondDenom
+	// initialBalanceAccount to be 1000M BYB = 1000 * 10^6 * 10^18 byb
+	initialBalanceAccount = "1000000000000000000000000000" + bondDenom
+
+	// initialBalanceUSDTAmount to be 1000M USDT = 1000000 * 10^6
+	initialUSDTBalance = "1000000000000000" + usdtDenom
 
 	// minimumGasPrices to be used for realistic bench (involving x/distribition)
 	minimumGasPrices = "1byb"
@@ -129,7 +136,7 @@ func GenerateConfigs(
 		}
 		appConfig.Save(valDir)
 
-		genesis.AddAccount(stakerPublicKey.Address(), initialBalanceStaker)
+		genesis.AddAccount(stakerPublicKey.Address(), initialBalanceStaker+","+initialUSDTBalance)
 		genesis.AddValidator(validatorPrivateKey.PubKey(), stakerPrivateKey, initialBalanceBonded)
 
 		if err := chain.SaveStakerKeyToKeyringFile(valDir, "validator", stakerPrivateKey); err != nil {
@@ -140,19 +147,31 @@ func GenerateConfigs(
 
 	for i := 0; i < env.NumOfInstances; i++ {
 		accounts := make([]chain.Secp256k1PrivateKey, 0, env.NumOfAccountsPerInstance)
+		addresses := make([]string, 0, env.NumOfAccountsPerInstance)
 
 		for j := 0; j < env.NumOfAccountsPerInstance; j++ {
 			accountPublicKey, accountPrivateKey := chain.GenerateSecp256k1Key()
+			address := accountPublicKey.Address().String()
+			genesis.AddAccount(accountPublicKey.Address(), initialBalanceAccount+","+initialUSDTBalance)
+
 			accounts = append(accounts, accountPrivateKey)
-			genesis.AddAccount(accountPublicKey.Address(), initialBalanceAccount)
+			addresses = append(addresses, address)
 		}
 
 		instanceDir := fmt.Sprintf("%s/instances/%d", rootOutDir, i)
 		orPanic(os.MkdirAll(instanceDir, 0o755))
 
+		// 保存私钥到 accounts.json（保持原格式不变）
 		accountsJSON := bytesOrPanic(json.Marshal(accounts))
 		orPanic(os.WriteFile(instanceDir+"/accounts.json", accountsJSON, 0o644))
+
+		// 保存地址到 addresses.json
+		addressesJSON := bytesOrPanic(json.Marshal(addresses))
+		orPanic(os.WriteFile(instanceDir+"/addresses.json", addressesJSON, 0o644))
 	}
+
+	// 创建 BYB/USDT 市场
+	genesis.AddSpotMarket(usdtDenom, bondDenom, "BYB/USDT", 6, 18, bybUsdtMarketID)
 
 	for i := 0; i < env.NumOfValidators; i++ {
 		genesis.Save(fmt.Sprintf("%s/validators/%d", rootOutDir, i))

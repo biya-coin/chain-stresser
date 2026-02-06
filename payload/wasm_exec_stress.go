@@ -172,7 +172,7 @@ func (p *wasmExecContractProvider) GenerateInitialTx(
 		Label:  time.Now().Format(time.RFC3339Nano),
 		Msg:    initMsgBytes,
 		Funds: sdk.Coins{{
-			Denom:  "inj",
+			Denom:  "byb",
 			Amount: math.NewInt(1),
 		}},
 		Salt:   p.init2Salt,

@@ -184,7 +184,7 @@ func NewMixedPayloadProvider(
 		if len(derivativeMarketIDs) == 0 {
 			derivativeMarketIDs = []string{"0x1422a13427d5eabd4d8de7907c8340f7e58cb15553a9fd4ad5c90406561886f9"}
 		}
-		provider, err := NewExchangeBatchOrdersProvider(minGasPrice, spotMarketIDs, derivativeMarketIDs)
+		provider, err := NewExchangeBatchOrdersProvider(minGasPrice, spotMarketIDs, derivativeMarketIDs, 1)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create exchange batch orders provider")
 		}

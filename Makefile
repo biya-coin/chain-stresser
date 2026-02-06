@@ -79,7 +79,13 @@ run-eth-userop:
 	chain-stresser tx-eth-userop --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 10
 
 run-exchange-batch-orders:
-	chain-stresser tx-exchange-batch-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000 --spot-market-ids 0x1422a13427d5eabd4d8de7907c8340f7e58cb15553a9fd4ad5c90406561886f9 --derivative-market-ids 0x1422a13427d5eabd4d8de7907c8340f7e58cb15553a9fd4ad5c90406561886f9
+	chain-stresser tx-exchange-batch-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000 \
+	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
+	--orders-per-market 1 \
+	--await=false \
+	--transactions 10 \
+	--verbose \
+	--rate-tps 40
 
 run-wasm-store-code:
 	chain-stresser tx-wasm-store-code --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000
@@ -119,6 +125,14 @@ create-markets:
 
 list-markets:
 	go run scripts/list-markets/list_markets.go
+
+list-orderbook:
+	@if [ -z "$(MARKET_ID)" ]; then \
+		echo "用法: make list-orderbook MARKET_ID=0x..."; \
+		echo "示例: make list-orderbook MARKET_ID=0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5"; \
+		exit 1; \
+	fi
+	go run scripts/list-orderbook/list_orderbook.go $(MARKET_ID)
 
 cook:
 	rsync -r ../chain-stresser cooking:~/go/src/

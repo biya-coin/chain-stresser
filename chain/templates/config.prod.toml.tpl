@@ -358,7 +358,7 @@ broadcast = true
 wal_dir = ""
 
 # Maximum number of transactions in the mempool
-size = 5000
+size = 50000
 
 # Maximum size in bytes of a single transaction accepted into the mempool.
 max_tx_bytes = 1048576
@@ -479,10 +479,7 @@ timeout_precommit_delta = "100ms"
 # height (this gives us a chance to receive some more precommits, even
 # though we already have +2/3).
 # Set to 0 if you want to make progress as soon as the node has all the precommits.
-timeout_commit = "500ms"
-
-# Deprecated: set `timeout_commit` to 0 instead.
-skip_timeout_commit = false
+timeout_commit = "0ms"
 
 # How many blocks to look back to check existence of the node's consensus votes before joining consensus
 # When non-zero, the node will panic upon restart
@@ -580,7 +577,7 @@ initial_block_results_retain_height = 0
 # 		- When "kv" is chosen "tx.height" and "tx.hash" will always be indexed.
 #   3) "psql" - the indexer services backed by PostgreSQL.
 # When "kv" or "psql" is chosen "tx.height" and "tx.hash" will always be indexed.
-indexer = "{{.TxIndexer}}"
+indexer = "kv"
 
 # The PostgreSQL connection configuration, the connection format:
 #   postgresql://<user>:<password>@<host>:<port>/<db>?<opts>

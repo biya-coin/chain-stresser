@@ -243,6 +243,55 @@ func (g *Genesis) Save(homeDir string) {
 	orPanic(g.genesisDoc.SaveAs(homeDir + "/config/genesis.json"))
 }
 
+func (g *Genesis) AddSpotMarket(baseDenom, quoteDenom, ticker string, baseDecimals, quoteDecimals uint32, marketID string) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	g.verifyNotFinalized()
+
+	if marketID == "" {
+		panic("marketID is required and cannot be empty")
+	}
+
+	var exchangeState map[string]interface{}
+	orPanic(json.Unmarshal(g.appState["exchange"], &exchangeState))
+
+	spotMarkets, ok := exchangeState["spot_markets"].([]interface{})
+	if !ok {
+		spotMarkets = []interface{}{}
+	}
+
+	// 检查是否已存在
+	for _, sm := range spotMarkets {
+		if smMap, ok := sm.(map[string]interface{}); ok {
+			if smMap["market_id"] == marketID {
+				return
+			}
+		}
+	}
+
+	makerFeeRate := "-0.0001"
+	takerFeeRate := "0.001"
+	spotMarket := map[string]interface{}{
+		"ticker":                 ticker,
+		"base_denom":             baseDenom,
+		"quote_denom":            quoteDenom,
+		"maker_fee_rate":         makerFeeRate,
+		"taker_fee_rate":         takerFeeRate,
+		"relayer_fee_share_rate": "0.4",
+		"market_id":              marketID,
+		"status":                 "Active",
+		"min_price_tick_size":    "0.0001",
+		"min_quantity_tick_size": "0.0001",
+		"base_decimals":          baseDecimals,
+		"quote_decimals":         quoteDecimals,
+	}
+	spotMarkets = append(spotMarkets, spotMarket)
+	exchangeState["spot_markets"] = spotMarkets
+
+	g.appState["exchange"] = json.RawMessage(bytesOrPanic(json.Marshal(exchangeState)))
+}
+
 func (g *Genesis) verifyNotFinalized() {
 	if g.finalized {
 		panic("genesis has been already saved, no more operations are allowed")

@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	exchangetypes "github.com/InjectiveLabs/sdk-go/chain/exchange/types"
+	exchangev2types "github.com/InjectiveLabs/sdk-go/chain/exchange/types/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	eth "github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
+	log "github.com/xlab/suplog"
 
 	"github.com/biya-coin/chain-stresser/v2/chain"
 )
@@ -21,9 +22,11 @@ type exchangeBatchOrdersProvider struct {
 	spotMarketIDs       []string
 	derivativeMarketIDs []string
 	numTargets          int
+	ordersPerMarket     int
 	minGasPrice         sdk.Coin
 	maxGasLimit         uint64
 	memoAttach          string
+	logger              log.Logger
 }
 
 // NewExchangeBatchUpdateProvider creates transaction factory for stress testing
@@ -32,6 +35,7 @@ func NewExchangeBatchOrdersProvider(
 	minGasPrice string,
 	spotMarketIDs []string,
 	derivativeMarketIDs []string,
+	ordersPerMarket int,
 ) (TxProvider, error) {
 
 	parsedMinGasPrice, err := sdk.ParseCoinNormalized(minGasPrice)
@@ -40,12 +44,21 @@ func NewExchangeBatchOrdersProvider(
 		return nil, err
 	}
 
+	if ordersPerMarket <= 0 {
+		ordersPerMarket = 1
+	}
+
 	provider := &exchangeBatchOrdersProvider{
 		spotMarketIDs:       spotMarketIDs,
 		derivativeMarketIDs: derivativeMarketIDs,
+		ordersPerMarket:     ordersPerMarket,
 		minGasPrice:         parsedMinGasPrice,
-		maxGasLimit:         150000,
+		maxGasLimit:         30000000,
 	}
+
+	provider.logger = log.WithFields(log.Fields{
+		"provider": provider.Name(),
+	})
 
 	return provider, nil
 }
@@ -61,68 +74,103 @@ func (p *exchangeBatchOrdersProvider) Name() string {
 func (p *exchangeBatchOrdersProvider) GenerateTx(
 	req TxRequest,
 ) (Tx, error) {
-	msg := new(exchangetypes.MsgBatchUpdateOrders)
-
 	// Use standard random generation
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	price := math.LegacyNewDecFromInt(math.NewInt((r.Int63n(9) + 1) * 1000))
-	quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(10000)+1), 2)
-	shouldCancelDerivative := r.Intn(2) > 0 // && false
+	// 随机生成数量：0.001 ~ 100.000
+	quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(100000)+1), 3)
 
 	sender := req.From.Key.AccAddress()
+	defaultSubaccountID := subaccount(req.From.Key.Address(), 0).Hex()
+
+	msg := exchangev2types.MsgBatchUpdateOrders{
+		Sender:                         string(sender),
+		SubaccountId:                   "",
+		SpotOrdersToCreate:             []*exchangev2types.SpotOrder{},
+		DerivativeOrdersToCreate:       []*exchangev2types.DerivativeOrder{},
+		SpotMarketIdsToCancelAll:       []string{}, // 空数组，不取消订单
+		DerivativeMarketIdsToCancelAll: []string{}, // 空数组，不取消订单
+	}
 
 	for i, marketID := range p.derivativeMarketIDs {
-		price = price.Add(math.LegacyNewDec(int64(i * 1000)))
+		for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
+			// 随机生成价格：50.001 ~ 60.001
+			derivativePriceValue := int64(r.Int63n(10001) + 50001)
+			derivativePrice := math.LegacyNewDecFromIntWithPrec(math.NewInt(derivativePriceValue), 3)
 
-		derivativeOrder := &exchangetypes.DerivativeOrder{
-			MarketId:  string(marketID),
-			OrderType: exchangetypes.OrderType_BUY,
-			Margin:    price.Mul(quantity),
-			OrderInfo: exchangetypes.OrderInfo{
-				FeeRecipient: sender,
-				Price:        price,
-				Quantity:     quantity,
-				Cid:          time.Now().Format(time.RFC3339Nano),
-			},
-		}
-		derivativeOrder.OrderInfo.SubaccountId = subaccount(req.From.Key.Address(), 0).Hex()
+			cid := fmt.Sprintf("%d-%d-%d-%d", req.FromIdx, req.TxIdx, i, orderIdx)
+			// 随机选择订单类型
+			var derivativeOrderType exchangev2types.OrderType
+			if r.Intn(2) == 0 {
+				derivativeOrderType = exchangev2types.OrderType_BUY
+			} else {
+				derivativeOrderType = exchangev2types.OrderType_SELL
+			}
 
-		msg.DerivativeOrdersToCreate = append(msg.DerivativeOrdersToCreate, derivativeOrder)
-		if shouldCancelDerivative && len(p.derivativeMarketIDs) > 0 {
-			// Cancel all orders for the current market ID
-			msg.DerivativeMarketIdsToCancelAll = []string{string(marketID)}
-			// Set SubaccountId to empty , TODO: check if need this at all
-			msg.SubaccountId = subaccount(req.From.Key.Address(), 0).Hex()
+			derivativeOrder := &exchangev2types.DerivativeOrder{
+				MarketId:  string(marketID),
+				OrderType: derivativeOrderType,
+				Margin:    derivativePrice.Mul(quantity),
+				OrderInfo: exchangev2types.OrderInfo{
+					FeeRecipient: string(sender),
+					Price:        derivativePrice,
+					Quantity:     quantity,
+					Cid:          cid,
+					SubaccountId: defaultSubaccountID,
+				},
+			}
+
+			p.logger.WithFields(log.Fields{
+				"order_type": derivativeOrderType.String(),
+				"price":      derivativePrice.String(),
+				"quantity":   quantity.String(),
+			}).Debug("📝 Creating derivative order")
+
+			msg.DerivativeOrdersToCreate = append(msg.DerivativeOrdersToCreate, derivativeOrder)
 		}
 	}
 
-	shouldCancelSpot := r.Intn(2) > 0 // && false
 	for i, marketID := range p.spotMarketIDs {
-		price = price.Add(math.LegacyNewDec(int64(i * 1000)))
-		spotOrder := &exchangetypes.SpotOrder{
-			MarketId:  string(marketID),
-			OrderType: exchangetypes.OrderType_BUY,
-			OrderInfo: exchangetypes.OrderInfo{
-				FeeRecipient: sender,
-				Price:        price,
-				Quantity:     quantity,
-				Cid:          time.Now().Format(time.RFC3339Nano),
-			},
-		}
-		spotOrder.OrderInfo.SubaccountId = subaccount(req.From.Key.Address(), 0).Hex()
-		msg.SpotOrdersToCreate = append(msg.SpotOrdersToCreate, spotOrder)
-		if shouldCancelSpot {
-			msg.SpotMarketIdsToCancelAll = []string{string(marketID)}
-			msg.SubaccountId = subaccount(req.From.Key.Address(), 0).Hex()
+		for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
+			// 随机生成价格：50.001 ~ 60.000
+			spotPriceValue := int64(r.Int63n(10001) + 50001)
+			spotPrice := math.LegacyNewDecFromIntWithPrec(math.NewInt(spotPriceValue), 3)
+
+			cid := fmt.Sprintf("%d-%d-%d-%d", req.FromIdx, req.TxIdx, i, orderIdx)
+
+			// 随机订单类型
+			var spotOrderType exchangev2types.OrderType
+			if r.Intn(2) == 0 {
+				spotOrderType = exchangev2types.OrderType_BUY
+			} else {
+				spotOrderType = exchangev2types.OrderType_SELL
+			}
+
+			spotOrder := &exchangev2types.SpotOrder{
+				MarketId:  string(marketID),
+				OrderType: spotOrderType,
+				OrderInfo: exchangev2types.OrderInfo{
+					FeeRecipient: string(sender),
+					Price:        spotPrice,
+					Quantity:     quantity,
+					Cid:          cid,
+					SubaccountId: defaultSubaccountID,
+				},
+			}
+
+			p.logger.WithFields(log.Fields{
+				"order_type": spotOrderType.String(),
+				"price":      spotPrice.String(),
+				"quantity":   quantity.String(),
+			}).Debug("📝 Creating spot order")
+
+			msg.SpotOrdersToCreate = append(msg.SpotOrdersToCreate, spotOrder)
 		}
 	}
-
-	msg.Sender = sender
 
 	tx := &exchangeBatchUpdateTx{
 		baseTx: baseTx{
 			from:    req.From,
-			msgs:    []sdk.Msg{msg},
+			msgs:    []sdk.Msg{&msg},
 			fromIdx: req.FromIdx,
 			txIdx:   req.TxIdx,
 		},

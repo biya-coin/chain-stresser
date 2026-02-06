@@ -1,12 +1,11 @@
 package chain
 
 import (
-	ctypes "github.com/InjectiveLabs/sdk-go/chain/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 func init() {
-	setAccountPrefixes("inj")
+	setAccountPrefixes("byb")
 }
 
 // DefaultPorts are the default ports the node listens on
@@ -36,9 +35,7 @@ func setAccountPrefixes(accountAddressPrefix string) {
 	config.SetBech32PrefixForAccount(accountAddressPrefix, accountPubKeyPrefix)
 	config.SetBech32PrefixForValidator(validatorAddressPrefix, validatorPubKeyPrefix)
 	config.SetBech32PrefixForConsensusNode(consNodeAddressPrefix, consNodePubKeyPrefix)
-
-	ctypes.SetBech32Prefixes(config)
-	ctypes.SetBip44CoinType(config)
+	config.Seal()
 }
 
 func orPanic(err error) {

@@ -27,7 +27,7 @@ Flags:
       --await                  Await for transaction to be included in a block.
       --chain-id string        Expected ID of the chain. (default "stressinj-1337")
   -h, --help                   help for chain-stresser
-      --min-gas-price string   Minimum gas price to pay for each transaction. (default "1inj")
+      --min-gas-price string   Minimum gas price to pay for each transaction. (default "1byb")
       --node-addr string       Address of a biyachaind node RPC to connect to. (default "localhost:26657")
       --rate-tps float         Rate limit transactions per second. Example: 200 for 200 TPS, 99.5 for fractional rates. 0 = no limit.
       --rate-bytes uint        Rate limit transaction bandwidth in bytes per second. Example: 50000 for 50KB/sec. 0 = no limit.
@@ -73,7 +73,7 @@ Create a YAML config file defining which payload types to use and their relative
 stresser_config:
   chain_id: "stressinj-1337"
   eth_chain_id: 1337
-  min_gas_price: "1inj"
+  min_gas_price: "1byb"
   node_addr: "127.0.0.1:26657"
   grpc_addr: "127.0.0.1:9900"
   await: true
@@ -85,11 +85,11 @@ stresser_config:
 # Payload configurations
 bank_send:
   frequency: 0.5        # 50% of transactions
-  send_amount: "1inj"
+  send_amount: "1byb"
 
 eth_send:
   frequency: 0.3        # 30% of transactions
-  send_amount: "1inj"
+  send_amount: "1byb"
 
 eth_call:
   frequency: 0.2        # 20% of transactions
