@@ -10,7 +10,7 @@ services:
     environment:
       - DEBUG=0
       - NODE_HOME=/root/.biyachaind
-      - CHAIN_ID=stressinj-1337
+      - CHAIN_ID=stressbiya-1337
       - MONIKER=validator-0
     cap_add:
       - SYS_PTRACE
@@ -28,7 +28,7 @@ services:
     environment:
       - DEBUG=0
       - NODE_HOME=/root/.biyachaind
-      - CHAIN_ID=stressinj-1337
+      - CHAIN_ID=stressbiya-1337
       - MONIKER=validator-1
     cap_add:
       - SYS_PTRACE
@@ -46,7 +46,7 @@ services:
     environment:
       - DEBUG=0
       - NODE_HOME=/root/.biyachaind
-      - CHAIN_ID=stressinj-1337
+      - CHAIN_ID=stressbiya-1337
       - MONIKER=validator-2
     cap_add:
       - SYS_PTRACE
@@ -64,7 +64,7 @@ services:
     environment:
       - DEBUG=0
       - NODE_HOME=/root/.biyachaind
-      - CHAIN_ID=stressinj-1337
+      - CHAIN_ID=stressbiya-1337
       - MONIKER=validator-3
     cap_add:
       - SYS_PTRACE
@@ -82,7 +82,7 @@ services:
     environment:
       - DEBUG=0
       - NODE_HOME=/root/.biyachaind
-      - CHAIN_ID=stressinj-1337
+      - CHAIN_ID=stressbiya-1337
       - MONIKER=sentry-node-0
     cap_add:
       - SYS_PTRACE
@@ -112,7 +112,7 @@ services:
     environment:
       - DEBUG=0
       - NODE_HOME=/root/.biyachaind
-      - CHAIN_ID=stressinj-1337
+      - CHAIN_ID=stressbiya-1337
       - MONIKER=sentry-node-1
     cap_add:
       - SYS_PTRACE

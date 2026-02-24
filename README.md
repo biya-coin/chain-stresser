@@ -1,6 +1,6 @@
 # Chain Stresser
 
-Our benchamark tool for stress testing the Injective Chain. Configures devnets of any scale and facilitates the execution of transactions from many accounts in parallel.
+Our benchamark tool for stress testing the Biya Chain. Configures devnets of any scale and facilitates the execution of transactions from many accounts in parallel.
 
 ## Installation
 
@@ -25,7 +25,7 @@ Flags:
       --accounts string        Path to a JSON file containing private keys of accounts to use for stress testing. (default "accounts.json")
       --accounts-num int       Number of accounts used to benchmark the node in parallel, must not be greater than the number of keys available in account file. (default 1000)
       --await                  Await for transaction to be included in a block.
-      --chain-id string        Expected ID of the chain. (default "stressinj-1337")
+      --chain-id string        Expected ID of the chain. (default "stressbiya-1337")
   -h, --help                   help for chain-stresser
       --min-gas-price string   Minimum gas price to pay for each transaction. (default "1byb")
       --node-addr string       Address of a biyachaind node RPC to connect to. (default "localhost:26657")
@@ -71,7 +71,7 @@ Create a YAML config file defining which payload types to use and their relative
 
 # Global configuration (optional) - CLI flags override these values
 stresser_config:
-  chain_id: "stressinj-1337"
+  chain_id: "stressbiya-1337"
   eth_chain_id: 1337
   min_gas_price: "1byb"
   node_addr: "127.0.0.1:26657"

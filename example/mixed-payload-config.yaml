@@ -5,7 +5,7 @@
 # Global stresser configuration (optional)
 # These values are used as defaults and can be overridden by command-line flags
 stresser_config:
-  chain_id: "stressinj-1337"
+  chain_id: "stressbiya-1337"
   eth_chain_id: 1337
   min_gas_price: "1byb"
   node_addr: "127.0.0.1:26657"

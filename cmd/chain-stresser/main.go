@@ -872,7 +872,7 @@ const bannerStr = `
 ┃ ┣┓┏┓┓┏┓  ┗┓╋┏┓┏┓┏┏
 ┗┛┛┗┗┻┗┛┗  ┗┛┗┛ ┗ ┛┛
 
-Ultimate benchmarking tool for Injective Chain 🔥
+Ultimate benchmarking tool for Biya Chain 🔥
 `
 
 func readAccounts(
