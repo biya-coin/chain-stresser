@@ -271,7 +271,7 @@ addr_book_file = "config/addrbook.json"
 
 # Set true for strict address routability rules
 # Set false for private or local networks
-addr_book_strict = true
+addr_book_strict = false
 
 # Maximum number of inbound peers
 max_num_inbound_peers = 50
@@ -298,7 +298,7 @@ send_rate = 5120000
 recv_rate = 5120000
 
 # Set true to enable the peer-exchange reactor
-pex = true
+pex = false
 
 # Seed mode, in which node constantly crawls the network and looks for
 # peers. If another node asks it for addresses, it responds and disconnects.
@@ -310,7 +310,7 @@ seed_mode = false
 private_peer_ids = "{{.PrivatePeerIds}}"
 
 # Toggle to disable guard against peers connecting from the same ip.
-allow_duplicate_ip = false
+allow_duplicate_ip = true
 
 # Peer connection configuration.
 handshake_timeout = "20s"

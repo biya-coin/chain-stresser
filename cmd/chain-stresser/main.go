@@ -29,7 +29,7 @@ import (
 const (
 	defaultChainID       = "stressbiya-801"
 	defaultEthChainID    = 801
-	defaultMinGasPrice   = "1byb"
+	defaultMinGasPrice   = "160000000byb"
 	defaultNumOfAccounts = 1000
 	defaultNumOfTx       = 100
 

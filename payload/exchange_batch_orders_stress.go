@@ -53,7 +53,7 @@ func NewExchangeBatchOrdersProvider(
 		derivativeMarketIDs: derivativeMarketIDs,
 		ordersPerMarket:     ordersPerMarket,
 		minGasPrice:         parsedMinGasPrice,
-		maxGasLimit:         30000000,
+		maxGasLimit:         75000000,
 	}
 
 	provider.logger = log.WithFields(log.Fields{
