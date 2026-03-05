@@ -75,6 +75,10 @@ func (tx *txnsReplayTx) WithBytes(bytes []byte) Tx {
 	}
 }
 
+func (tx *txnsReplayTx) WithAccount(_ chain.Account) Tx {
+	return tx // replay txs are pre-signed, account info is ignored
+}
+
 // FromIdx returns 0 as state replay transactions don't have account indices
 func (tx *txnsReplayTx) FromIdx() int {
 	return 0

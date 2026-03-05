@@ -55,9 +55,8 @@ type StressConfig struct {
 	RateLimit ratelimit.Config
 }
 
-// maxParallelInitialTxsBroadcasts is the maximum number of initial txs to broadcast in parallel.
-// this is internal to the stresser and not configurable for now.
-const maxParallelInitialTxsBroadcasts = 8
+// maxParallelPreStressBroadcasts is the maximum number of pre-stress txs to broadcast in parallel.
+const maxParallelPreStressBroadcasts = 8
 
 // handleFallbackBroadcast attempts to broadcast the original transaction when fuzzed transaction fails
 func handleFallbackBroadcast(
@@ -256,6 +255,24 @@ func Stress(
 					txProvider,
 					config.Accounts,
 				))
+
+				// Phase 2: maker orders (or other pre-stress setup).
+				// Only runs if the provider implements PreStressTxProvider.
+				// These txs are broadcast with await=true so they are confirmed
+				// on-chain before the main stress transactions are generated.
+				if preStressProvider, ok := txProvider.(payload.PreStressTxProvider); ok {
+					orPanic(createAndBroadcastPreStressTxs(
+						ctx,
+						logger,
+						signedTxPace,
+						getAccountNumberSequencePace,
+						broadcastTxPace,
+						client,
+						txProvider,
+						preStressProvider,
+						config.Accounts,
+					))
+				}
 			}
 
 			initialAccountSequencesMux := new(sync.Mutex)
@@ -688,8 +705,7 @@ func createAndBroadcastInitialTxs(
 		}).Debugln("✅ Generated initial txs to broadcast")
 	}
 
-	// we can broadcast initial txs in parallel because accounts are unique
-	pool := workerpool.New(maxParallelInitialTxsBroadcasts)
+	pool := workerpool.New(len(initialTxs))
 
 	for _, initialTx := range initialTxs {
 		initialTx := initialTx
@@ -735,7 +751,123 @@ func createAndBroadcastInitialTxs(
 		})
 	}
 
-	defer pool.StopWait()
+	pool.StopWait()
+	logger.Infoln("✅ All initial deposits confirmed on-chain")
+
+	return nil
+}
+
+func createAndBroadcastPreStressTxs(
+	ctx context.Context,
+	logger log.Logger,
+	signedTxPace,
+	getAccountNumberSequencePace,
+	broadcastTxPace pace.Pace,
+	client chain.Client,
+	provider payload.TxProvider,
+	preStressProvider payload.PreStressTxProvider,
+	fromPrivateKeys []chain.Secp256k1PrivateKey,
+) error {
+	preTxs := make([]payload.Tx, 0, len(fromPrivateKeys))
+
+	for keyIdx, fromPrivateKey := range fromPrivateKeys {
+		accNum, accSeq, err := getAccountNumberSequence(ctx, client, fromPrivateKey.AccAddress())
+		if err != nil {
+			return errors.Wrap(err, "❌ Fetching pre-stress Tx account number/sequence failed")
+		}
+
+		getAccountNumberSequencePace.Step(1)
+
+		preTx, err := preStressProvider.GeneratePreStressTx(payload.TxRequest{
+			Keys: []chain.Secp256k1PrivateKey{fromPrivateKey},
+			From: chain.Account{
+				Key:      fromPrivateKey,
+				Number:   accNum,
+				Sequence: accSeq,
+			},
+			FromIdx: keyIdx,
+			TxIdx:   0,
+		})
+		if err != nil {
+			return errors.Wrap(err, "❌ Generating pre-stress Tx failed")
+		}
+
+		if preTx == nil {
+			continue
+		}
+
+		// 如果 tx 签名账户与当前压测账户不同（例如使用了独立的 makerKey），
+		// 需要重新查询该账户的 accNum/accSeq 并更新 tx.From()。
+		signingKey := preTx.From().Key
+		if string(signingKey) != string(fromPrivateKey) {
+			makerNum, makerSeq, err := getAccountNumberSequence(ctx, client, signingKey.AccAddress())
+			if err != nil {
+				return errors.Wrap(err, "❌ Fetching maker account number/sequence failed")
+			}
+			getAccountNumberSequencePace.Step(1)
+			preTx = preTx.WithAccount(chain.Account{
+				Name:     preTx.From().Name,
+				Key:      signingKey,
+				Number:   makerNum,
+				Sequence: makerSeq,
+			})
+		}
+
+		preTxs = append(preTxs, preTx)
+	}
+
+	if len(preTxs) == 0 {
+		logger.Infoln("✅ No pre-stress txs to broadcast.")
+		return nil
+	}
+
+	logger.WithFields(log.Fields{
+		"num": len(preTxs),
+	}).Infoln("📋 Broadcasting pre-stress maker orders...")
+
+	pool := workerpool.New(maxParallelPreStressBroadcasts)
+
+	for _, preTx := range preTxs {
+		preTx := preTx
+
+		pool.Submit(func() {
+			if err := retry.Do(func() error {
+				defer catcher.Catch(
+					catcher.RecvLog(true),
+					catcher.RecvDie(1, true),
+				)
+
+				signedTx, err := provider.BuildAndSignTx(client, preTx)
+				if err != nil {
+					return errors.Wrap(err, "❌ Signing pre-stress Tx failed")
+				}
+
+				signedTxPace.Step(1)
+
+				txHash, err := client.Broadcast(ctx, signedTx.Bytes(), true)
+				if err != nil {
+					return errors.Wrapf(err, "❌ Broadcasting pre-stress Tx failed: %s", txHash)
+				}
+
+				broadcastTxPace.Step(1)
+
+				logger.WithFields(log.Fields{
+					"txHash": txHash,
+				}).Debugln("✅ Pre-stress maker order Tx broadcasted")
+
+				return nil
+			},
+				retry.Context(ctx),
+				retry.Attempts(5),
+				retry.MaxDelay(5*time.Second),
+			); err != nil {
+				logger.WithError(err).Error("❌ All attempts to broadcast pre-stress Tx failed")
+			}
+		})
+	}
+
+	pool.StopWait()
+	logger.Infoln("✅ Pre-stress maker orders confirmed on-chain")
 
 	return nil
 }

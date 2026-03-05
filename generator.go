@@ -36,8 +36,8 @@ const (
 	// BYB/USDT market ID
 	bybUsdtMarketID = "0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5"
 
-	// initialBalanceStaker to be 100K BYB = 100000 * 10^18 byb
-	initialBalanceStaker = "100000000000000000000000" + bondDenom
+	// initialBalanceStaker: 10^13 * 10^18 byb
+	initialBalanceStaker = "10000000000000000000000000000000" + bondDenom
 
 	// initialBalanceBonded to be 10K BYB = 10000 * 10^18 byb
 	initialBalanceBonded = "10000000000000000000000" + bondDenom
@@ -45,8 +45,8 @@ const (
 	// initialBalanceAccount to be 1000M BYB = 1000 * 10^6 * 10^18 byb
 	initialBalanceAccount = "1000000000000000000000000000" + bondDenom
 
-	// initialBalanceUSDTAmount to be 1000M USDT = 1000000 * 10^6
-	initialUSDTBalance = "1000000000000000" + usdtDenom
+	// initialBalanceUSDTAmount: 10^13 * 10^6 USDT
+	initialUSDTBalance = "10000000000000000000" + usdtDenom
 
 	// minimumGasPrices to be used for realistic bench (involving x/distribition)
 	minimumGasPrices = "1byb"
@@ -79,6 +79,7 @@ func GenerateConfigs(
 	persistentValidatorPeers := make([]string, 0, env.NumOfValidators)
 	validatorNodeIDs := make([]string, 0, env.NumOfValidators)
 	allNodeConfigs := make([]chain.NodeConfig, 0, env.NumOfValidators+env.NumOfSentryNodes)
+	allStakerKeys := make([]chain.Secp256k1PrivateKey, 0, env.NumOfValidators)
 
 	for i := 0; i < env.NumOfValidators; i++ {
 		nodePrivateKey := tmed25519.GenPrivKey()
@@ -142,8 +143,14 @@ func GenerateConfigs(
 		if err := chain.SaveStakerKeyToKeyringFile(valDir, "validator", stakerPrivateKey); err != nil {
 			panic(fmt.Errorf("保存验证者staker账户密钥失败: %v", err))
 		}
+
+		allStakerKeys = append(allStakerKeys, stakerPrivateKey)
 	}
 	orPanic(os.WriteFile(rootOutDir+"/validators/ids.json", bytesOrPanic(json.Marshal(validatorNodeIDs)), 0o644))
+
+	// 将共识节点的 staker 私钥保存到 validators/staker_keys.json
+	allStakerKeysJSON := bytesOrPanic(json.Marshal(allStakerKeys))
+	orPanic(os.WriteFile(rootOutDir+"/validators/staker_keys.json", allStakerKeysJSON, 0o600))
 
 	for i := 0; i < env.NumOfInstances; i++ {
 		accounts := make([]chain.Secp256k1PrivateKey, 0, env.NumOfAccountsPerInstance)
@@ -171,7 +178,7 @@ func GenerateConfigs(
 	}
 
 	// 创建 BYB/USDT 市场
-	genesis.AddSpotMarket(usdtDenom, bondDenom, "BYB/USDT", 6, 18, bybUsdtMarketID)
+	genesis.AddSpotMarket(bondDenom, usdtDenom, "BYB/USDT", 18, 6, bybUsdtMarketID)
 
 	for i := 0; i < env.NumOfValidators; i++ {
 		genesis.Save(fmt.Sprintf("%s/validators/%d", rootOutDir, i))

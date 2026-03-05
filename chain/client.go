@@ -30,6 +30,21 @@ const (
 
 var errRetry = errors.New("retry required")
 
+// isNetworkError returns true for transient network errors that should be retried
+// (e.g. EOF, connection reset by peer, connection refused)
+func isNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "EOF") ||
+		strings.Contains(msg, "connection reset by peer") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "i/o timeout") ||
+		strings.Contains(msg, "no such host")
+}
+
 // TODO: replace with https://github.com/InjectiveLabs/sdk-go/tree/master/client/chain
 func NewClient(chainID string, addr string, grpcAddr string) Client {
 	rpcClient, err := client.NewClientFromNode("tcp://" + addr)
@@ -130,6 +145,11 @@ func (c Client) Broadcast(ctx context.Context, encodedTx []byte, await bool) (st
 				}
 
 				if !isTxInMempool(errRes) {
+					// Transient network errors (EOF, connection reset, etc.) should be retried.
+					// The node may briefly drop connections during block commit or under load.
+					if isNetworkError(err) {
+						return errors.WithStack(err) // retryable
+					}
 					return retry.Unrecoverable(errors.WithStack(err))
 				}
 
@@ -225,6 +245,37 @@ func (c Client) Broadcast(ctx context.Context, encodedTx []byte, await bool) (st
 				return txHash, nil
 			}
 
+			t.Reset(defaultBroadcastStatusPoll)
+		}
+	}
+}
+
+// AwaitTx polls the chain until the tx with the given hex hash is included in a block.
+// It returns the block height on success, or an error if the timeout is exceeded.
+func (c Client) AwaitTx(ctx context.Context, txHash string) (int64, error) {
+	txHashBytes, err := hex.DecodeString(txHash)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to decode tx hash as hex")
+	}
+
+	t := time.NewTimer(defaultBroadcastStatusPoll)
+	timeoutCtx, cancel := context.WithTimeout(ctx, confirmTimeout)
+	defer cancel()
+
+	for {
+		select {
+		case <-timeoutCtx.Done():
+			t.Stop()
+			return 0, errors.Errorf("AwaitTx timed out waiting for tx %s", txHash)
+		case <-t.C:
+			resultTx, err := c.clientCtx.Client.Tx(timeoutCtx, txHashBytes, false)
+			if err != nil {
+				t.Reset(defaultBroadcastStatusPoll)
+				continue
+			} else if resultTx.Height > 0 {
+				t.Stop()
+				return resultTx.Height, nil
+			}
 			t.Reset(defaultBroadcastStatusPoll)
 		}
 	}
@@ -403,12 +454,25 @@ func checkNonce(codespace string, code uint32, log string) error {
 	})
 }
 
-// IsSequenceError checks if error is related to account sequence mismatch, and returns expected account sequence
+// IsSequenceError checks if error is related to account sequence mismatch, and returns expected account sequence.
+// It handles both typed sequenceError (from checkSequence) and raw error strings (e.g. from JSON-RPC -32603 errors).
 func IsSequenceError(err error) (uint64, bool) {
 	var seqErr sequenceError
 
 	if errors.As(err, &seqErr) {
 		return seqErr.expectedSequence, true
+	}
+
+	// Fallback: parse expected sequence from the raw error message.
+	// This covers cases like JSON-RPC -32603 Internal errors where the message is embedded
+	// directly in the error string rather than in res.Code/res.Log.
+	if err != nil {
+		matches := expectedSequenceRegExp.FindStringSubmatch(err.Error())
+		if len(matches) == 2 {
+			if expectedSeq, parseErr := strconv.ParseUint(matches[1], 10, 64); parseErr == nil {
+				return expectedSeq, true
+			}
+		}
 	}
 
 	return 0, false

@@ -524,6 +524,55 @@ func main() {
 	txExchangeBatchOrdersCmd.Flags().IntVar(&ordersPerMarket, "orders-per-market", 1, "Number of orders to create per market (default: 1).")
 	rootCmd.AddCommand(txExchangeBatchOrdersCmd)
 
+	var marketSpotMarketIDs []string
+	var marketDerivativeMarketIDs []string
+	var marketOrdersPerMarket int
+
+	txExchangeMarketOrdersCmd := &cobra.Command{
+		Use:   "tx-exchange-market-orders",
+		Short: "Run stresstest with x/exchange market orders (BUY/SELL) via MsgBatchUpdateOrders.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if verboseOutput {
+				log.DefaultLogger.SetLevel(log.DebugLevel)
+			}
+
+			orPanic(readAccounts(&stressCfg, accountFile, numOfAccounts))
+
+			// 从 validators/staker_keys.json 加载做市账户（取第一个私钥，必须存在）
+			const makerAccountFile = "./chain-stresser-deploy/validators/staker_keys.json"
+			var makerKey *chain.Secp256k1PrivateKey
+			keysRaw, err := os.ReadFile(makerAccountFile)
+			if err != nil {
+				return errors.Wrapf(err, "reading maker account file %s failed (run 'make gen-*' to generate it)", makerAccountFile)
+			}
+			var makerKeys []chain.Secp256k1PrivateKey
+			if err := json.Unmarshal(keysRaw, &makerKeys); err != nil {
+				return errors.Wrap(err, "parsing maker account file failed")
+			}
+			if len(makerKeys) == 0 {
+				return errors.New("maker account file contains no keys")
+			}
+			makerKey = &makerKeys[0]
+			log.Infof("✅ Maker account loaded: %s", makerKey.AccAddress())
+
+			exchangeMarketOrdersProvider, err := payload.NewExchangeMarketOrdersProvider(stressCfg.MinGasPrice, marketSpotMarketIDs, marketDerivativeMarketIDs, marketOrdersPerMarket, makerKey)
+			if err != nil {
+				return errors.Wrap(err, "failed to initate exchange market orders stress provider")
+			}
+
+			if err := stresser.Stress(rootCtx, stressCfg, exchangeMarketOrdersProvider); err != nil {
+				log.Errorf("❌ benchmark failed:\n\n%s", err)
+				os.Exit(-1)
+			}
+
+			return nil
+		},
+	}
+	txExchangeMarketOrdersCmd.Flags().StringSliceVar(&marketSpotMarketIDs, "spot-market-ids", []string{}, "Comma-separated list of spot market IDs for market orders.")
+	txExchangeMarketOrdersCmd.Flags().StringSliceVar(&marketDerivativeMarketIDs, "derivative-market-ids", []string{}, "Comma-separated list of derivative market IDs for market orders.")
+	txExchangeMarketOrdersCmd.Flags().IntVar(&marketOrdersPerMarket, "orders-per-market", 1, "Number of market orders to create per market (default: 1).")
+	rootCmd.AddCommand(txExchangeMarketOrdersCmd)
+
 	txWasmStoreCodeCmd := &cobra.Command{
 		Use:   "tx-wasm-store-code",
 		Short: "Run stresstest with x/wasm.MsgStoreCode transactions.",

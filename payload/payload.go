@@ -38,6 +38,15 @@ type TxProvider interface {
 	) (signedTx Tx, err error)
 }
 
+// PreStressTxProvider is an optional interface that a TxProvider can implement
+// to broadcast a second batch of setup txs (e.g. maker limit orders) after the
+// primary initial txs (e.g. MsgDeposit) are confirmed on-chain, but before the
+// main stress loop starts. GeneratePreStressTx is called once per account; the
+// returned tx is signed and broadcast with await=true. Return nil, nil to skip.
+type PreStressTxProvider interface {
+	GeneratePreStressTx(req TxRequest) (Tx, error)
+}
+
 type QueuedTx interface {
 	FromIdx() int
 	TxIdx() int
@@ -49,6 +58,7 @@ type Tx interface {
 	From() chain.Account
 	Msgs() []sdk.Msg
 	WithBytes(txBytes []byte) Tx
+	WithAccount(account chain.Account) Tx
 	Bytes() []byte
 }
 
@@ -75,9 +85,13 @@ func (t *baseTx) Msgs() []sdk.Msg {
 
 func (t *baseTx) WithBytes(txBytes []byte) Tx {
 	tc := *t
-
 	tc.txBytes = txBytes
+	return &tc
+}
 
+func (t *baseTx) WithAccount(account chain.Account) Tx {
+	tc := *t
+	tc.from = account
 	return &tc
 }
 

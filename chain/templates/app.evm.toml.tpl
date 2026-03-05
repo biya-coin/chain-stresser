@@ -68,7 +68,8 @@ iavl-cache-size = 781250
 
 # IAVLDisableFastNode enables or disables the fast node feature of IAVL.
 # Default is false.
-iavl-disable-fastnode = true
+# 压测开启，用于快速查询
+iavl-disable-fastnode = false
 
 # AppDBBackend defines the database backend type to use for the application and snapshots DBs.
 # An empty string indicates that a fallback will be used.

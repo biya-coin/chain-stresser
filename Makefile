@@ -79,13 +79,28 @@ run-eth-userop:
 	chain-stresser tx-eth-userop --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 10
 
 run-exchange-batch-orders:
-	chain-stresser tx-exchange-batch-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000 \
+	chain-stresser tx-exchange-batch-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
+	--accounts-num 5000 \
 	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
 	--orders-per-market 1 \
+	--node-addr 127.0.0.1:26857 \
+	--grpc-addr 127.0.0.1:10100 \
 	--await=false \
 	--transactions 10 \
 	--verbose \
-	--rate-tps 40
+	--rate-tps 100
+
+run-exchange-market-orders:
+	chain-stresser tx-exchange-market-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
+	--accounts-num 5000 \
+	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
+	--orders-per-market 1 \
+	--node-addr 127.0.0.1:26857 \
+	--grpc-addr 127.0.0.1:10100 \
+	--await=false \
+	--transactions 10 \
+	--verbose \
+	--rate-tps 100
 
 run-wasm-store-code:
 	chain-stresser tx-wasm-store-code --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000
@@ -140,4 +155,5 @@ cook:
 .PHONY: lint install solidity cook
 .PHONY: gen-0 val-0-start val-0-clean
 .PHONY: run-bank-send run-eth-send run-eth-call
+.PHONY: run-exchange-batch-orders run-exchange-market-orders
 .PHONY: eth-counter-get eth-erc20-setup eth-erc20-userop-stress
