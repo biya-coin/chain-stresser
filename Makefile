@@ -94,13 +94,22 @@ run-exchange-market-orders:
 	chain-stresser tx-exchange-market-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
 	--accounts-num 5000 \
 	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
-	--orders-per-market 1 \
 	--node-addr 127.0.0.1:26857 \
 	--grpc-addr 127.0.0.1:10100 \
 	--await=false \
 	--transactions 10 \
 	--verbose \
 	--rate-tps 100
+
+run-exchange-spot-limit-orders:
+	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
+	--accounts-num 5000 \
+	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
+	--node-addr 127.0.0.1:26857 \
+	--grpc-addr 127.0.0.1:10100 \
+	--await=false \
+	--transactions 1 \
+	--rate-tps 1
 
 run-wasm-store-code:
 	chain-stresser tx-wasm-store-code --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000

@@ -266,109 +266,113 @@ func (p *exchangeMarketOrdersProvider) GenerateTx(
 	// index=1：与 GenerateInitialTx 充值目标保持一致
 	defaultSubaccountID := subaccount(req.From.Key.Address(), 1).Hex()
 
-	msg := exchangev2types.MsgBatchUpdateOrders{
-		Sender:                         string(sender),
-		SubaccountId:                   "",
-		SpotOrdersToCreate:             []*exchangev2types.SpotOrder{},
-		SpotMarketOrdersToCreate:       []*exchangev2types.SpotOrder{},
-		DerivativeOrdersToCreate:       []*exchangev2types.DerivativeOrder{},
-		DerivativeMarketOrdersToCreate: []*exchangev2types.DerivativeOrder{},
-		SpotMarketIdsToCancelAll:       []string{},
-		DerivativeMarketIdsToCancelAll: []string{},
-	}
+	var msgs []sdk.Msg
 
 	// ---------------------------------------------------------------
-	// 市价单（做市限价单已由 GeneratePreStressTx 提前确认上链）
-	//   数量：0.001 ~ 0.010（极小，确保不耗尽做市单）
-	//   价格：0.500 ~ 2.500（处于 0.1~3.0 之间，必然与做市单交叉）
+	// 现货市价单：直接发 MsgCreateSpotMarketOrder，确保走
+	// SpotMsgServer.CreateSpotMarketOrder 入口，触发 Prometheus 指标。
+	//
+	// 做市限价单已由 GeneratePreStressTx 提前确认上链：
+	//   BUY  maker @0.01  → 匹配 SELL 市价单（价格 0.001~0.005）
+	//   SELL maker @10.00 → 匹配 BUY  市价单（价格 11.0~20.0）
 	// ---------------------------------------------------------------
 	for marketIdx, marketID := range p.spotMarketIDs {
 		for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
-			// 数量：0.001 ~ 0.010
+			// 数量：0.001 ~ 0.010（极小，确保不耗尽做市单）
 			quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(10)+1), 3)
 
-			var spotOrderType exchangev2types.OrderType
+			var orderType exchangev2types.OrderType
 			var spotPrice math.LegacyDec
 
 			if r.Intn(2) == 0 {
 				// BUY 市价单：价格 11.000 ~ 20.000（高于 SELL@10 做市单，必然撮合）
-				spotOrderType = exchangev2types.OrderType_BUY
-				spotPriceValue := int64(r.Int63n(9001) + 11000) // [11000, 20000] 精度×1000
+				orderType = exchangev2types.OrderType_BUY
+				spotPriceValue := int64(r.Int63n(9001) + 11000)
 				spotPrice = math.LegacyNewDecFromIntWithPrec(math.NewInt(spotPriceValue), 3)
 			} else {
 				// SELL 市价单：价格 0.001 ~ 0.005（低于 BUY@0.01 做市单，必然撮合）
-				spotOrderType = exchangev2types.OrderType_SELL
-				spotPriceValue := int64(r.Int63n(5) + 1) // [1, 5] 表示 0.001~0.005
+				orderType = exchangev2types.OrderType_SELL
+				spotPriceValue := int64(r.Int63n(5) + 1)
 				spotPrice = math.LegacyNewDecFromIntWithPrec(math.NewInt(spotPriceValue), 3)
 			}
 
 			cid := fmt.Sprintf("m-%d-%d-%d-%d", req.FromIdx, req.TxIdx, marketIdx, orderIdx)
 
-			spotOrder := &exchangev2types.SpotOrder{
-				MarketId:  string(marketID),
-				OrderType: spotOrderType,
-				OrderInfo: exchangev2types.OrderInfo{
-					FeeRecipient: string(sender),
-					Price:        spotPrice,
-					Quantity:     quantity,
-					Cid:          cid,
-					SubaccountId: defaultSubaccountID,
+			msg := &exchangev2types.MsgCreateSpotMarketOrder{
+				Sender: string(sender),
+				Order: exchangev2types.SpotOrder{
+					MarketId:  string(marketID),
+					OrderType: orderType,
+					OrderInfo: exchangev2types.OrderInfo{
+						FeeRecipient: string(sender),
+						Price:        spotPrice,
+						Quantity:     quantity,
+						Cid:          cid,
+						SubaccountId: defaultSubaccountID,
+					},
 				},
 			}
 
 			p.logger.WithFields(log.Fields{
-				"order_type": spotOrderType.String(),
+				"order_type": orderType.String(),
 				"price":      spotPrice.String(),
 				"quantity":   quantity.String(),
-			}).Debug("📝 Creating spot market order")
+				"market_id":  marketID,
+				"cid":        cid,
+			}).Debug("📝 Creating spot market order via MsgCreateSpotMarketOrder")
 
-			msg.SpotMarketOrdersToCreate = append(msg.SpotMarketOrdersToCreate, spotOrder)
+			msgs = append(msgs, msg)
 		}
 	}
 
-	// 衍生品市价单（如有）
-	for i, marketID := range p.derivativeMarketIDs {
-		for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
-			derivativePriceValue := int64(r.Int63n(10001) + 50001)
-			derivativePrice := math.LegacyNewDecFromIntWithPrec(math.NewInt(derivativePriceValue), 3)
-			quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(10000)+1), 3)
-
-			cid := fmt.Sprintf("m-%d-%d-%d-%d", req.FromIdx, req.TxIdx, i, orderIdx)
-
-			var derivativeOrderType exchangev2types.OrderType
-			if r.Intn(2) == 0 {
-				derivativeOrderType = exchangev2types.OrderType_BUY_ATOMIC
-			} else {
-				derivativeOrderType = exchangev2types.OrderType_SELL_ATOMIC
-			}
-
-			derivativeOrder := &exchangev2types.DerivativeOrder{
-				MarketId:  string(marketID),
-				OrderType: derivativeOrderType,
-				Margin:    derivativePrice.Mul(quantity),
-				OrderInfo: exchangev2types.OrderInfo{
-					FeeRecipient: string(sender),
-					Price:        derivativePrice,
-					Quantity:     quantity,
-					Cid:          cid,
-					SubaccountId: defaultSubaccountID,
-				},
-			}
-
-			p.logger.WithFields(log.Fields{
-				"order_type": derivativeOrderType.String(),
-				"price":      derivativePrice.String(),
-				"quantity":   quantity.String(),
-			}).Debug("📝 Creating derivative market order")
-
-			msg.DerivativeMarketOrdersToCreate = append(msg.DerivativeMarketOrdersToCreate, derivativeOrder)
+	// 衍生品市价单（如有）仍通过 MsgBatchUpdateOrders
+	if len(p.derivativeMarketIDs) > 0 {
+		batchMsg := &exchangev2types.MsgBatchUpdateOrders{
+			Sender:                         string(sender),
+			DerivativeMarketOrdersToCreate: []*exchangev2types.DerivativeOrder{},
 		}
+
+		for i, marketID := range p.derivativeMarketIDs {
+			for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
+				derivativePriceValue := int64(r.Int63n(10001) + 50001)
+				derivativePrice := math.LegacyNewDecFromIntWithPrec(math.NewInt(derivativePriceValue), 3)
+				quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(10000)+1), 3)
+
+				cid := fmt.Sprintf("m-%d-%d-%d-%d", req.FromIdx, req.TxIdx, i, orderIdx)
+
+				var derivativeOrderType exchangev2types.OrderType
+				if r.Intn(2) == 0 {
+					derivativeOrderType = exchangev2types.OrderType_BUY_ATOMIC
+				} else {
+					derivativeOrderType = exchangev2types.OrderType_SELL_ATOMIC
+				}
+
+				batchMsg.DerivativeMarketOrdersToCreate = append(batchMsg.DerivativeMarketOrdersToCreate, &exchangev2types.DerivativeOrder{
+					MarketId:  string(marketID),
+					OrderType: derivativeOrderType,
+					Margin:    derivativePrice.Mul(quantity),
+					OrderInfo: exchangev2types.OrderInfo{
+						FeeRecipient: string(sender),
+						Price:        derivativePrice,
+						Quantity:     quantity,
+						Cid:          cid,
+						SubaccountId: defaultSubaccountID,
+					},
+				})
+			}
+		}
+
+		msgs = append(msgs, batchMsg)
+	}
+
+	if len(msgs) == 0 {
+		return nil, errors.New("no market IDs configured")
 	}
 
 	tx := &exchangeMarketOrderTx{
 		baseTx: baseTx{
 			from:    req.From,
-			msgs:    []sdk.Msg{&msg},
+			msgs:    msgs,
 			fromIdx: req.FromIdx,
 			txIdx:   req.TxIdx,
 		},

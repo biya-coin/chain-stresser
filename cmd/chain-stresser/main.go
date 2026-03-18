@@ -573,6 +573,42 @@ func main() {
 	txExchangeMarketOrdersCmd.Flags().IntVar(&marketOrdersPerMarket, "orders-per-market", 1, "Number of market orders to create per market (default: 1).")
 	rootCmd.AddCommand(txExchangeMarketOrdersCmd)
 
+	var (
+		spotLimitSpotMarketIDs   []string
+		spotLimitOrdersPerMarket int
+	)
+
+	txExchangeSpotLimitOrdersCmd := &cobra.Command{
+		Use:   "tx-exchange-spot-limit-orders",
+		Short: "Run stresstest with x/exchange.MsgCreateSpotLimitOrder transactions (direct, not batch).",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if verboseOutput {
+				log.DefaultLogger.SetLevel(log.DebugLevel)
+			}
+
+			orPanic(readAccounts(&stressCfg, accountFile, numOfAccounts))
+
+			spotLimitProvider, err := payload.NewExchangeSpotLimitOrdersProvider(
+				stressCfg.MinGasPrice,
+				spotLimitSpotMarketIDs,
+				spotLimitOrdersPerMarket,
+			)
+			if err != nil {
+				return errors.Wrap(err, "failed to initiate exchange spot limit orders stress provider")
+			}
+
+			if err := stresser.Stress(rootCtx, stressCfg, spotLimitProvider); err != nil {
+				log.Errorf("❌ benchmark failed:\n\n%s", err)
+				os.Exit(-1)
+			}
+
+			return nil
+		},
+	}
+	txExchangeSpotLimitOrdersCmd.Flags().StringSliceVar(&spotLimitSpotMarketIDs, "spot-market-ids", []string{}, "Comma-separated list of spot market IDs.")
+	txExchangeSpotLimitOrdersCmd.Flags().IntVar(&spotLimitOrdersPerMarket, "orders-per-market", 1, "Number of limit orders to create per market (default: 1).")
+	rootCmd.AddCommand(txExchangeSpotLimitOrdersCmd)
+
 	txWasmStoreCodeCmd := &cobra.Command{
 		Use:   "tx-wasm-store-code",
 		Short: "Run stresstest with x/wasm.MsgStoreCode transactions.",

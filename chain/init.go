@@ -9,17 +9,18 @@ func init() {
 }
 
 // DefaultPorts are the default ports the node listens on
+var offset = 0
 var DefaultPorts = Ports{
-	RPC:        26657,
-	P2P:        26656,
-	API:        10337,
-	GRPC:       9900,
-	GRPCWeb:    9091,
-	PProf:      6060,
-	Prometheus: 26660,
-	EVMRPC:     8545,
-	EVMWSPort:  8546,
-	ProxyApp:   26658,
+	RPC:        26657 + offset,
+	P2P:        26656 + offset,
+	API:        10337 + offset,
+	GRPC:       9900 + offset,
+	GRPCWeb:    9091 + offset,
+	PProf:      6060 + offset,
+	Prometheus: 26660 + offset,
+	EVMRPC:     8545 + offset,
+	EVMWSPort:  8546 + offset,
+	ProxyApp:   26658 + offset,
 }
 
 func setAccountPrefixes(accountAddressPrefix string) {

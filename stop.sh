@@ -3,7 +3,7 @@
 echo "Stopping biyachaind nodes..."
 
 for i in 0 1 2 3; do
-    PID_FILE="chain-stresser-deploy/log/pid$i.pid"
+    PID_FILE="node-log/pid$i.pid"
     if [ -f "$PID_FILE" ]; then
         PID=$(cat "$PID_FILE")
         if kill -0 "$PID" 2>/dev/null; then
