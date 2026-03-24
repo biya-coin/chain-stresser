@@ -19,4 +19,7 @@ for i in 0 1 2 3; do
     fi
 done
 
+rm -rf chain-stresser-deploy
+rm -rf node-log/*
+
 echo "All nodes stopped."

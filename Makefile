@@ -164,5 +164,5 @@ cook:
 .PHONY: lint install solidity cook
 .PHONY: gen-0 val-0-start val-0-clean
 .PHONY: run-bank-send run-eth-send run-eth-call
-.PHONY: run-exchange-batch-orders run-exchange-market-orders
+.PHONY: run-exchange-batch-orders run-exchange-market-orders run-exchange-spot-limit-orders
 .PHONY: eth-counter-get eth-erc20-setup eth-erc20-userop-stress
