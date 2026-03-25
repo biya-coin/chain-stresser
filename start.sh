@@ -1,11 +1,9 @@
-make install
-
 sh stop.sh
 
 rm -rf chain-stresser-deploy
 # template: evm  
 # app.evm.toml.tpl | config.prod.toml.tpl | genesis.evm.json.tpl | 
-NODE_NUM=1
+NODE_NUM=4
 chain-stresser generate --accounts-num 5000 --validators $NODE_NUM --sentries 0 --instances 1 --prod --native
 
 mkdir -p node-log/
