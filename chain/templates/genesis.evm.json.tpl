@@ -4,8 +4,8 @@
   "initial_height": "1",
   "consensus_params": {
     "block": {
-      "max_bytes": "22020096",
-      "max_gas": "-1"
+      "max_bytes": "1048576",
+      "max_gas": "2000000000"
     },
     "evidence": {
       "max_age_num_blocks": "100000",
