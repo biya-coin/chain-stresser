@@ -98,7 +98,7 @@ run-exchange-market-orders:
 	--grpc-addr 127.0.0.1:10100 \
 	--await=false \
 	--transactions 50 \
-	--rate-tps 80
+	--rate-tps 300
 
 run-exchange-spot-limit-orders:
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
@@ -108,7 +108,7 @@ run-exchange-spot-limit-orders:
 	--grpc-addr 127.0.0.1:10100 \
 	--await=false \
 	--transactions 50 \
-	--rate-tps 70
+	--rate-tps 300
 
 run-wasm-store-code:
 	chain-stresser tx-wasm-store-code --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000

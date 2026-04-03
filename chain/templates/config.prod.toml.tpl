@@ -336,7 +336,7 @@ type = "flood"
 # Since a block affects the application state, some transactions in the
 # mempool may become invalid. If this does not apply to your application,
 # you can disable rechecking.
-recheck = true
+recheck = false
 
 # recheck_timeout is the time the application has during the rechecking process
 # to return CheckTx responses, once all requests have been sent. Responses that
