@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/google/uuid"
+
 	"cosmossdk.io/math"
 	exchangev2types "github.com/InjectiveLabs/sdk-go/chain/exchange/types/v2"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -81,7 +83,7 @@ func (p *exchangeSpotLimitOrdersProvider) GenerateTx(req TxRequest) (Tx, error) 
 
 	var msgs []sdk.Msg
 
-	for i, marketID := range p.spotMarketIDs {
+	for _, marketID := range p.spotMarketIDs {
 		for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
 			// 随机价格：50.001 ~ 60.000
 			spotPriceValue := int64(r.Int63n(10000) + 50001)
@@ -90,7 +92,7 @@ func (p *exchangeSpotLimitOrdersProvider) GenerateTx(req TxRequest) (Tx, error) 
 			// 随机数量：0.001 ~ 100.000
 			quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(100000)+1), 3)
 
-			cid := fmt.Sprintf("%d-%d-%d-%d", req.FromIdx, req.TxIdx, i, orderIdx)
+			cid := fmt.Sprintf("%d-%s", req.FromIdx, uuid.New().String()[:8])
 
 			var orderType exchangev2types.OrderType
 			if r.Intn(2) == 0 {
