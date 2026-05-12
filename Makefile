@@ -118,15 +118,15 @@ run-exchange-spot-limit-orders:
 # 	1. 修改account.json的路径
 #   2. 修改端口为26657和19900
 run-exchange-spot-limit-orders-monad:
-	chain-stresser tx-exchange-spot-limit-orders --accounts /home/cyyu/monad-workspace/monad-bft/.monad/instances/0/accounts.json \
+	chain-stresser tx-exchange-spot-limit-orders --accounts /home/cyyu/monad-bft/.monad/instances/0/accounts.json \
 	--accounts-num 1000 \
 	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
 	--node-addr 127.0.0.1:26657 \
 	--grpc-addr 127.0.0.1:19900 \
 	--chain-id biyachain-1 \
 	--await=false \
-	--transactions 10 \
-	--rate-tps 50
+	--transactions 50 \
+	--rate-tps 300
 
 run-wasm-store-code:
 	chain-stresser tx-wasm-store-code --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000

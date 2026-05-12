@@ -427,15 +427,27 @@ func Stress(
 							txHash, err := rateLimitedBroadcast(ctx, tx)
 							if err != nil {
 								if expectedAccSeq, ok := chain.IsSequenceError(err); ok {
+									newTxIndex := int(int64(expectedAccSeq) - int64(initialSequence))
 									logger.WithError(err).WithFields(log.Fields{
 										"accIndex":           accountIdx,
 										"txIndex":            txIndex,
 										"initialAccSequence": initialSequence,
 										"expectedSequence":   expectedAccSeq,
-										"newSequence":        int(expectedAccSeq - initialSequence),
+										"newSequence":        newTxIndex,
 									}).Debug("⚠️ Tx broadcasting failed, trying suggested sequence")
 
-									txIndex = int(expectedAccSeq - initialSequence)
+									if newTxIndex > txIndex && newTxIndex < config.NumOfTransactions {
+										// chain is ahead of us, skip forward
+										txIndex = newTxIndex
+									} else {
+										// chain hasn't caught up yet (newTxIndex <= txIndex),
+										// do NOT roll back — just wait and retry the current tx
+										select {
+										case <-ctx.Done():
+											return ctx.Err()
+										case <-time.After(200 * time.Millisecond):
+										}
+									}
 									continue
 								}
 

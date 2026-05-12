@@ -44,7 +44,7 @@ moniker = "{{.Moniker}}"
 #   - DEPRECATED
 #   - stable
 #   - use boltdb build tag (go build -tags boltdb)
-db_backend = "goleveldb"
+db_backend = "pebbledb"
 
 # Database directory
 db_dir = "data"
