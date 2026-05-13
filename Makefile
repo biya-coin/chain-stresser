@@ -108,11 +108,11 @@ run-exchange-spot-limit-orders:
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
 	--accounts-num 1000 \
 	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
-	--node-addr 127.0.0.1:26857 \
-	--grpc-addr 127.0.0.1:10100 \
+	--node-addr 127.0.0.1:26657 \
+	--grpc-addr 127.0.0.1:9900 \
 	--await=false \
 	--transactions 50 \
-	--rate-tps 300
+	--rate-tps 200
 
 # monad 限价单：
 # 	1. 修改account.json的路径

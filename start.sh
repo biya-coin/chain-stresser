@@ -9,7 +9,7 @@ BIYACHIAND="/home/ubuntu/biyachain/biyachain-core/bin/biyachaind"
 log_level="info"
 optimistic_execution_enabled=true
 
-chain-stresser generate --accounts-num 1000 --validators $NODE_NUM --sentries 0 --instances 1 --prod --native
+chain-stresser generate --accounts-num 1000 --validators $NODE_NUM --sentries 0 --instances 4 --prod --native
 
 mkdir -p node-log/
 
