@@ -421,12 +421,36 @@ func Stress(
 							catcher.RecvDie(1, true),
 						)
 
+						mempoolFullRetries := 0
+
 						for txIndex := 0; txIndex < config.NumOfTransactions; {
 							tx := accountTxs[txIndex]
 
 							txHash, err := rateLimitedBroadcast(ctx, tx)
 							if err != nil {
+								if chain.IsMempoolFullError(err) {
+									mempoolFullRetries++
+									backoff := 50*time.Millisecond + time.Duration(min(mempoolFullRetries, 20))*25*time.Millisecond
+
+									logger.WithError(err).WithFields(log.Fields{
+										"accIndex":        accountIdx,
+										"txIndex":         txIndex,
+										"retry":           mempoolFullRetries,
+										"retryAfter":      backoff,
+										"benchmarkWarning": "lane/mempool full, waiting then retry same tx",
+									}).Debug("⚠️ Tx rejected by full lane/mempool, will retry")
+
+									select {
+									case <-ctx.Done():
+										return ctx.Err()
+									case <-time.After(backoff):
+									}
+
+									continue
+								}
+
 								if expectedAccSeq, ok := chain.IsSequenceError(err); ok {
+									mempoolFullRetries = 0
 									newTxIndex := int(int64(expectedAccSeq) - int64(initialSequence))
 									logger.WithError(err).WithFields(log.Fields{
 										"accIndex":           accountIdx,
@@ -455,6 +479,7 @@ func Stress(
 								return err
 							}
 
+							mempoolFullRetries = 0
 							broadcastTxPace.Step(1)
 							logger.WithFields(log.Fields{
 								"txHash": txHash,

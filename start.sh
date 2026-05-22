@@ -6,7 +6,7 @@ rm -rf chain-stresser-deploy
 NODE_NUM=4
 BIYACHIAND="/home/ubuntu/biyachain/biyachain-core/bin/biyachaind"
 
-log_level="info"
+log_level="error"
 optimistic_execution_enabled=true
 
 chain-stresser generate --accounts-num 1000 --validators $NODE_NUM --sentries 0 --instances 4 --prod --native

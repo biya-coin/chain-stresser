@@ -483,5 +483,9 @@ func IsMempoolFullError(err error) bool {
 		return false
 	}
 
-	return strings.Contains(err.Error(), "mempool is full")
+	errMsg := err.Error()
+
+	return strings.Contains(errMsg, "mempool is full") ||
+		strings.Contains(errMsg, "lane default is full") ||
+		strings.Contains(errMsg, "lane ") && strings.Contains(errMsg, " is full")
 }
