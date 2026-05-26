@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	requestTimeout             = 1 * time.Minute
+	requestTimeout             = 10 * time.Minute
 	confirmTimeout             = 10 * time.Minute
 	defaultBroadcastStatusPoll = 1 * time.Second
 )
@@ -150,6 +150,12 @@ func (c Client) Broadcast(ctx context.Context, encodedTx []byte, await bool) (st
 					if isNetworkError(err) {
 						return errors.WithStack(err) // retryable
 					}
+					// JSON-RPC -32603 errors embed the sequence error in the error string.
+					// Surface them as Unrecoverable so the caller (stresser) can parse
+					// the expected sequence and skip forward.
+					if _, ok := IsSequenceError(err); ok {
+						return retry.Unrecoverable(err)
+					}
 					return retry.Unrecoverable(errors.WithStack(err))
 				}
 
@@ -167,6 +173,19 @@ func (c Client) Broadcast(ctx context.Context, encodedTx []byte, await bool) (st
 
 				if err := checkNonce(res.Codespace, res.Code, res.Log); err != nil {
 					return retry.Unrecoverable(err)
+				}
+
+				// If we get a sequence/nonce error and txHash is set, the tx may have
+				// already been committed on a previous retry attempt (network error caused
+				// a retry but the original broadcast already succeeded). Check on-chain.
+				if txHash != "" && isSDKErrorResult(res.Codespace, res.Code, cosmoserrors.ErrWrongSequence) {
+					txHashBytes, hexErr := hex.DecodeString(txHash)
+					if hexErr == nil {
+						if resultTx, queryErr := c.clientCtx.Client.Tx(requestCtx, txHashBytes, false); queryErr == nil && resultTx.TxResult.Code == 0 {
+							// tx already committed successfully on a previous attempt
+							return nil
+						}
+					}
 				}
 
 				err := errors.Errorf(
@@ -401,8 +420,18 @@ func (e sequenceError) Error() string {
 	return e.message
 }
 
-var expectedSequenceRegExp = regexp.MustCompile(`account sequence mismatch, expected (\d+), got \d+`)
+var expectedSequenceRegExp = regexp.MustCompile(`account sequence(?:[^,]*, expected >=? (\d+)|mismatch, expected (\d+)), got \d+`)
 var expectedNonceRegExp = regexp.MustCompile(`invalid nonce; got \d+, expected (\d+)`)
+
+// firstNonEmpty returns the first non-empty string from the slice, or "".
+func firstNonEmpty(ss []string) string {
+	for _, s := range ss {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
+}
 
 func isSDKErrorResult(codespace string, code uint32, sdkErr *errorsmod.Error) bool {
 	return codespace == sdkErr.Codespace() &&
@@ -418,11 +447,15 @@ func checkSequence(codespace string, code uint32, log string) error {
 	}
 
 	matches := expectedSequenceRegExp.FindStringSubmatch(log)
-	if len(matches) != 2 {
+	var seqStr string
+	if len(matches) > 1 {
+		seqStr = firstNonEmpty(matches[1:])
+	}
+	if seqStr == "" {
 		return errors.Errorf("cosmos sdk hasn't returned expected sequence number, log mesage received: %s", log)
 	}
 
-	expectedSequence, err := strconv.ParseUint(matches[1], 10, 64)
+	expectedSequence, err := strconv.ParseUint(seqStr, 10, 64)
 	if err != nil {
 		return errors.Wrapf(err, "can't parse expected sequence number, log mesage received: %s", log)
 	}
@@ -468,9 +501,11 @@ func IsSequenceError(err error) (uint64, bool) {
 	// directly in the error string rather than in res.Code/res.Log.
 	if err != nil {
 		matches := expectedSequenceRegExp.FindStringSubmatch(err.Error())
-		if len(matches) == 2 {
-			if expectedSeq, parseErr := strconv.ParseUint(matches[1], 10, 64); parseErr == nil {
-				return expectedSeq, true
+		if len(matches) > 1 {
+			if seqStr := firstNonEmpty(matches[1:]); seqStr != "" {
+				if expectedSeq, parseErr := strconv.ParseUint(seqStr, 10, 64); parseErr == nil {
+					return expectedSeq, true
+				}
 			}
 		}
 	}
