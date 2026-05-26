@@ -420,7 +420,7 @@ func (e sequenceError) Error() string {
 	return e.message
 }
 
-var expectedSequenceRegExp = regexp.MustCompile(`account sequence(?:[^,]*, expected >=? (\d+)|mismatch, expected (\d+)), got \d+`)
+var expectedSequenceRegExp = regexp.MustCompile(`account sequence[^,]*, expected \D*(\d+), got \d+`)
 var expectedNonceRegExp = regexp.MustCompile(`invalid nonce; got \d+, expected (\d+)`)
 
 // firstNonEmpty returns the first non-empty string from the slice, or "".
