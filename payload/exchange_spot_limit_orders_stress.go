@@ -83,49 +83,51 @@ func (p *exchangeSpotLimitOrdersProvider) GenerateTx(req TxRequest) (Tx, error) 
 
 	var msgs []sdk.Msg
 
-	for _, marketID := range p.spotMarketIDs {
-		for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
-			// 随机价格：50.001 ~ 60.000
-			spotPriceValue := int64(r.Int63n(10000) + 50001)
-			spotPrice := math.LegacyNewDecFromIntWithPrec(math.NewInt(spotPriceValue), 3)
+	if len(p.spotMarketIDs) == 0 {
+		return nil, errors.New("no spot market IDs configured")
+	}
+	marketID := p.spotMarketIDs[r.Intn(len(p.spotMarketIDs))]
+	for orderIdx := 0; orderIdx < p.ordersPerMarket; orderIdx++ {
+		// 随机价格：50.001 ~ 60.000
+		spotPriceValue := int64(r.Int63n(10000) + 50001)
+		spotPrice := math.LegacyNewDecFromIntWithPrec(math.NewInt(spotPriceValue), 3)
 
-			// 随机数量：0.001 ~ 100.000
-			quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(100000)+1), 3)
+		// 随机数量：0.001 ~ 100.000
+		quantity := math.LegacyNewDecFromIntWithPrec(math.NewInt(r.Int63n(100000)+1), 3)
 
-			cid := fmt.Sprintf("%d-%s", req.FromIdx, uuid.New().String()[:8])
+		cid := fmt.Sprintf("%d-%s", req.FromIdx, uuid.New().String()[:8])
 
-			var orderType exchangev2types.OrderType
-			if r.Intn(2) == 0 {
-				orderType = exchangev2types.OrderType_BUY
-			} else {
-				orderType = exchangev2types.OrderType_SELL
-			}
-
-			msg := &exchangev2types.MsgCreateSpotLimitOrder{
-				Sender: string(sender),
-				Order: exchangev2types.SpotOrder{
-					MarketId:  string(marketID),
-					OrderType: orderType,
-					OrderInfo: exchangev2types.OrderInfo{
-						FeeRecipient: string(sender),
-						Price:        spotPrice,
-						Quantity:     quantity,
-						Cid:          cid,
-						SubaccountId: defaultSubaccountID,
-					},
-				},
-			}
-
-			p.logger.WithFields(log.Fields{
-				"order_type": orderType.String(),
-				"price":      spotPrice.String(),
-				"quantity":   quantity.String(),
-				"market_id":  marketID,
-				"cid":        cid,
-			}).Debug("📝 Creating spot limit order via MsgCreateSpotLimitOrder")
-
-			msgs = append(msgs, msg)
+		var orderType exchangev2types.OrderType
+		if r.Intn(2) == 0 {
+			orderType = exchangev2types.OrderType_BUY
+		} else {
+			orderType = exchangev2types.OrderType_SELL
 		}
+
+		msg := &exchangev2types.MsgCreateSpotLimitOrder{
+			Sender: string(sender),
+			Order: exchangev2types.SpotOrder{
+				MarketId:  string(marketID),
+				OrderType: orderType,
+				OrderInfo: exchangev2types.OrderInfo{
+					FeeRecipient: string(sender),
+					Price:        spotPrice,
+					Quantity:     quantity,
+					Cid:          cid,
+					SubaccountId: defaultSubaccountID,
+				},
+			},
+		}
+
+		p.logger.WithFields(log.Fields{
+			"order_type": orderType.String(),
+			"price":      spotPrice.String(),
+			"quantity":   quantity.String(),
+			"market_id":  marketID,
+			"cid":        cid,
+		}).Debug("📝 Creating spot limit order via MsgCreateSpotLimitOrder")
+
+		msgs = append(msgs, msg)
 	}
 
 	if len(msgs) == 0 {

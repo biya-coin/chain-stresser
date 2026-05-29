@@ -33,8 +33,11 @@ const (
 	bondDenom = "byb"
 	// USDT peggy denom
 	usdtDenom = "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360"
+	// BTC denom
+	btcDenom = "peggy0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
 	// BYB/USDT market ID
 	bybUsdtMarketID = "0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5"
+	btcUsdtMarketID = "0x181ce56d07b29b81d518bd98d06a6af30b7343e3782fb8a6bff79d72b52a72d7"
 
 	// initialBalanceStaker: 10^13 * 10^18 byb
 	initialBalanceStaker = "10000000000000000000000000000000" + bondDenom
@@ -47,6 +50,8 @@ const (
 
 	// initialBalanceUSDTAmount: 10^13 * 10^6 USDT
 	initialUSDTBalance = "10000000000000000000" + usdtDenom
+
+	initialBTCBalance = "10000000000000000000" + btcDenom
 
 	// minimumGasPrices to be used for realistic bench (involving x/distribition)
 	minimumGasPrices = "1byb"
@@ -137,7 +142,7 @@ func GenerateConfigs(
 		}
 		appConfig.Save(valDir)
 
-		genesis.AddAccount(stakerPublicKey.Address(), initialBalanceStaker+","+initialUSDTBalance)
+		genesis.AddAccount(stakerPublicKey.Address(), initialBalanceStaker+","+initialUSDTBalance+","+initialBTCBalance)
 		genesis.AddValidator(validatorPrivateKey.PubKey(), stakerPrivateKey, initialBalanceBonded)
 
 		if err := chain.SaveStakerKeyToKeyringFile(valDir, "validator", stakerPrivateKey); err != nil {
@@ -159,7 +164,7 @@ func GenerateConfigs(
 		for j := 0; j < env.NumOfAccountsPerInstance; j++ {
 			accountPublicKey, accountPrivateKey := chain.GenerateSecp256k1Key()
 			address := accountPublicKey.Address().String()
-			genesis.AddAccount(accountPublicKey.Address(), initialBalanceAccount+","+initialUSDTBalance)
+			genesis.AddAccount(accountPublicKey.Address(), initialBalanceAccount+","+initialUSDTBalance+","+initialBTCBalance)
 
 			accounts = append(accounts, accountPrivateKey)
 			addresses = append(addresses, address)
@@ -179,6 +184,7 @@ func GenerateConfigs(
 
 	// 创建 BYB/USDT 市场
 	genesis.AddSpotMarket(bondDenom, usdtDenom, "BYB/USDT", 18, 6, bybUsdtMarketID)
+	genesis.AddSpotMarket(btcDenom, usdtDenom, "BTC/USDT", 8, 6, btcUsdtMarketID)
 
 	for i := 0; i < env.NumOfValidators; i++ {
 		genesis.Save(fmt.Sprintf("%s/validators/%d", rootOutDir, i))
