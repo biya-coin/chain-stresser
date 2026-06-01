@@ -115,27 +115,29 @@ run-exchange-spot-limit-orders:
 	--rate-tps 200
 
 # 四节点并发压测：同时向 instance 0-3 发限价单，全部完成后退出
-STRESS_TRANSACTIONS ?= 40
-STRESS_RATE_TPS     ?= 1000
+SPOT_MARKET_ID      ?= 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5
+STRESS_ACCOUNTS_NUM ?= 1000   
+STRESS_TRANSACTIONS ?= 10
+STRESS_RATE_TPS     ?= 60
 run-exchange-spot-limit-orders-4:
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
-		--accounts-num 1000 \
-		--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
+		--accounts-num $(STRESS_ACCOUNTS_NUM) \
+		--spot-market-ids $(SPOT_MARKET_ID) \
 		--node-addr 127.0.0.1:26657 --grpc-addr 127.0.0.1:9900 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/1/accounts.json \
-		--accounts-num 1000 \
-		--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
+		--accounts-num $(STRESS_ACCOUNTS_NUM) \
+		--spot-market-ids $(SPOT_MARKET_ID) \
 		--node-addr 127.0.0.1:26757 --grpc-addr 127.0.0.1:10000 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/2/accounts.json \
-		--accounts-num 1000 \
-		--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
+		--accounts-num $(STRESS_ACCOUNTS_NUM) \
+		--spot-market-ids $(SPOT_MARKET_ID) \
 		--node-addr 127.0.0.1:26857 --grpc-addr 127.0.0.1:10100 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/3/accounts.json \
-		--accounts-num 1000 \
-		--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
+		--accounts-num $(STRESS_ACCOUNTS_NUM) \
+		--spot-market-ids $(SPOT_MARKET_ID) \
 		--node-addr 127.0.0.1:26957 --grpc-addr 127.0.0.1:10200 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	wait
