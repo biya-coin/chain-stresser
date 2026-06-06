@@ -4,7 +4,7 @@ rm -rf chain-stresser-deploy
 # template: evm  
 # app.evm.toml.tpl | config.prod.toml.tpl | genesis.evm.json.tpl | 
 NODE_NUM=4
-BIYACHIAND="/home/ubuntu/biyachain/biyachain-core/bin/biyachaind"
+BIYACHIAND="/Users/maxwelldu/github/biya/biyachain-core/bin/biyachaind"
 
 log_level="error"
 optimistic_execution_enabled=true

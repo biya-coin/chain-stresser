@@ -113,7 +113,7 @@ unsafe = false
 # 0 - unlimited.
 # Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
 # 1024 - 40 - 10 - 50 = 924 = ~900
-max_open_connections = 900
+max_open_connections = 2000
 
 # Maximum number of unique clientIDs that can /subscribe.
 # If you're using /broadcast_tx_commit, set to the estimated maximum number
@@ -358,16 +358,16 @@ broadcast = true
 wal_dir = ""
 
 # Maximum number of transactions in the mempool
-size = 5000
+size = 20000
 
 # Maximum size in bytes of a single transaction accepted into the mempool.
-max_tx_bytes = 1048576
+max_tx_bytes = 2097152
 
 # The maximum size in bytes of all transactions stored in the mempool.
 # This is the raw, total transaction size. For example, given 1MB
 # transactions and a 5MB maximum mempool byte size, the mempool will
 # only accept five transactions.
-max_txs_bytes = 67108864
+max_txs_bytes = 268435456
 
 # Size of the cache (used to filter transactions we saw earlier) in transactions
 cache_size = 10000
@@ -464,7 +464,7 @@ version = "v0"
 wal_file = "data/cs.wal/wal"
 
 # How long we wait for a proposal block before prevoting nil
-timeout_propose = "600s"
+timeout_propose = "3s"
 # How much timeout_propose increases with each round
 timeout_propose_delta = "100ms"
 # How long we wait after receiving +2/3 prevotes for “anything” (ie. not a single block or nil)
