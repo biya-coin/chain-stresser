@@ -527,6 +527,7 @@ func main() {
 	var marketSpotMarketIDs []string
 	var marketDerivativeMarketIDs []string
 	var marketOrdersPerMarket int
+	var marketMakerAccountFile string
 
 	txExchangeMarketOrdersCmd := &cobra.Command{
 		Use:   "tx-exchange-market-orders",
@@ -538,21 +539,23 @@ func main() {
 
 			orPanic(readAccounts(&stressCfg, accountFile, numOfAccounts))
 
-			// 从 validators/staker_keys.json 加载做市账户（取第一个私钥，必须存在）
-			const makerAccountFile = "./chain-stresser-deploy/validators/staker_keys.json"
 			var makerKey *chain.Secp256k1PrivateKey
-			keysRaw, err := os.ReadFile(makerAccountFile)
-			if err != nil {
-				return errors.Wrapf(err, "reading maker account file %s failed (run 'make gen-*' to generate it)", makerAccountFile)
+			if marketMakerAccountFile == "" {
+				makerKey = &stressCfg.Accounts[0]
+			} else {
+				keysRaw, err := os.ReadFile(marketMakerAccountFile)
+				if err != nil {
+					return errors.Wrapf(err, "reading maker account file %s failed", marketMakerAccountFile)
+				}
+				var makerKeys []chain.Secp256k1PrivateKey
+				if err := json.Unmarshal(keysRaw, &makerKeys); err != nil {
+					return errors.Wrap(err, "parsing maker account file failed")
+				}
+				if len(makerKeys) == 0 {
+					return errors.New("maker account file contains no keys")
+				}
+				makerKey = &makerKeys[0]
 			}
-			var makerKeys []chain.Secp256k1PrivateKey
-			if err := json.Unmarshal(keysRaw, &makerKeys); err != nil {
-				return errors.Wrap(err, "parsing maker account file failed")
-			}
-			if len(makerKeys) == 0 {
-				return errors.New("maker account file contains no keys")
-			}
-			makerKey = &makerKeys[0]
 			log.Infof("✅ Maker account loaded: %s", makerKey.AccAddress())
 
 			exchangeMarketOrdersProvider, err := payload.NewExchangeMarketOrdersProvider(stressCfg.MinGasPrice, marketSpotMarketIDs, marketDerivativeMarketIDs, marketOrdersPerMarket, makerKey)
@@ -571,6 +574,7 @@ func main() {
 	txExchangeMarketOrdersCmd.Flags().StringSliceVar(&marketSpotMarketIDs, "spot-market-ids", []string{}, "Comma-separated list of spot market IDs for market orders.")
 	txExchangeMarketOrdersCmd.Flags().StringSliceVar(&marketDerivativeMarketIDs, "derivative-market-ids", []string{}, "Comma-separated list of derivative market IDs for market orders.")
 	txExchangeMarketOrdersCmd.Flags().IntVar(&marketOrdersPerMarket, "orders-per-market", 1, "Number of market orders to create per market (default: 1).")
+	txExchangeMarketOrdersCmd.Flags().StringVar(&marketMakerAccountFile, "maker-accounts", "", "Path to a JSON file containing maker private keys. Defaults to the first key from --accounts.")
 	rootCmd.AddCommand(txExchangeMarketOrdersCmd)
 
 	var (
