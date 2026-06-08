@@ -7,7 +7,9 @@ NODE_NUM=4
 BIYACHIAND="/Users/maxwelldu/github/biya/biyachain-core/bin/biyachaind"
 
 log_level="error"
-optimistic_execution_enabled=true
+# 必须保持 false：乐观执行(OE)与 exchange 进程级写回缓存不兼容，开启会导致
+# "OE aborted due to hash mismatch" + 出块锯齿（OE abort 时进程级缓存不回滚、残留脏值）。
+optimistic_execution_enabled=false
 
 chain-stresser generate --accounts-num 1000 --validators $NODE_NUM --sentries 0 --instances 4 --prod --native
 
