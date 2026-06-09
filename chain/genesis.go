@@ -35,7 +35,7 @@ const (
 
 	// DefaultChainID is the default chain ID used in the genesis file
 	// Note that the chain ID must end with a number, to allow EVM chain IDs to be used
-	DefaultChainID = "stressbyb-801"
+	DefaultChainID = "biyachain-1"
 
 	// DefaultEthChainID is the default EVM chain ID used in the genesis file
 	DefaultEthChainID = 801
@@ -49,6 +49,14 @@ type GenesisConfig struct {
 	BondDenom   string
 	EvmEnabled  bool
 	ProdLike    bool
+}
+
+type rawGenesisDoc struct {
+	ConsensusParams struct {
+		Block struct {
+			MaxTxs string `json:"max_txs"`
+		} `json:"block"`
+	} `json:"consensus_params"`
 }
 
 func NewGenesis(genConfig *GenesisConfig) *Genesis {
@@ -92,6 +100,9 @@ func NewGenesis(genConfig *GenesisConfig) *Genesis {
 	genesisDoc, err := tmtypes.GenesisDocFromJSON(buf.Bytes())
 	orPanic(err)
 
+	var rawGenesis rawGenesisDoc
+	orPanic(json.Unmarshal(buf.Bytes(), &rawGenesis))
+
 	var appState map[string]json.RawMessage
 	orPanic(json.Unmarshal(genesisDoc.AppState, &appState))
 
@@ -112,6 +123,7 @@ func NewGenesis(genConfig *GenesisConfig) *Genesis {
 		authState:    authState,
 		accountState: accountState,
 		bankState:    banktypes.GetGenesisStateFromAppState(clientCtx.Codec, appState),
+		maxBlockTxs:  rawGenesis.ConsensusParams.Block.MaxTxs,
 	}
 
 	// TODO: add pre-defined accounts
@@ -132,6 +144,7 @@ type Genesis struct {
 	authState    authtypes.GenesisState
 	accountState authtypes.GenesisAccounts
 	bankState    *banktypes.GenesisState
+	maxBlockTxs  string
 }
 
 func (g Genesis) ChainID() string {
@@ -240,7 +253,44 @@ func (g *Genesis) Save(homeDir string) {
 	g.genesisDoc.AppState = bytesOrPanic(json.MarshalIndent(g.appState, "", "\t"))
 
 	orPanic(os.MkdirAll(homeDir+"/config", 0o755))
-	orPanic(g.genesisDoc.SaveAs(homeDir + "/config/genesis.json"))
+	genesisPath := homeDir + "/config/genesis.json"
+	orPanic(g.genesisDoc.SaveAs(genesisPath))
+	orPanic(setGenesisMaxTxs(genesisPath, g.maxBlockTxs))
+}
+
+func setGenesisMaxTxs(genesisPath string, maxTxs string) error {
+	if maxTxs == "" {
+		return nil
+	}
+
+	genesisBz, err := os.ReadFile(genesisPath)
+	if err != nil {
+		return err
+	}
+
+	var genesis map[string]interface{}
+	if err := json.Unmarshal(genesisBz, &genesis); err != nil {
+		return err
+	}
+
+	consensusParams, ok := genesis["consensus_params"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	blockParams, ok := consensusParams["block"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	blockParams["max_txs"] = maxTxs
+
+	genesisBz, err = json.MarshalIndent(genesis, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(genesisPath, genesisBz, 0o644)
 }
 
 func (g *Genesis) AddSpotMarket(baseDenom, quoteDenom, ticker string, baseDecimals, quoteDecimals uint32, marketID string) {

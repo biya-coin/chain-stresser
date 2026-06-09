@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	defaultChainID       = "stressbiya-801"
+	defaultChainID       = "biyachain-1"
 	defaultEthChainID    = 801
 	defaultMinGasPrice   = "160000000byb"
 	defaultNumOfAccounts = 1000
