@@ -387,6 +387,7 @@ func Stress(
 	startTs = time.Now()
 
 	logger.Info("Broadcasting transactions 🚀")
+	defer broadcastTxPace.Pause()
 
 	// Create broadcast function with optional rate limiting
 	rateLimitedBroadcast, err := buildBroadcastClient(config)
@@ -433,10 +434,10 @@ func Stress(
 									backoff := 50*time.Millisecond + time.Duration(min(mempoolFullRetries, 20))*25*time.Millisecond
 
 									logger.WithError(err).WithFields(log.Fields{
-										"accIndex":        accountIdx,
-										"txIndex":         txIndex,
-										"retry":           mempoolFullRetries,
-										"retryAfter":      backoff,
+										"accIndex":         accountIdx,
+										"txIndex":          txIndex,
+										"retry":            mempoolFullRetries,
+										"retryAfter":       backoff,
 										"benchmarkWarning": "lane/mempool full, waiting then retry same tx",
 									}).Debug("⚠️ Tx rejected by full lane/mempool, will retry")
 
@@ -460,7 +461,19 @@ func Stress(
 										"newSequence":        newTxIndex,
 									}).Debug("⚠️ Tx broadcasting failed, trying suggested sequence")
 
-									if newTxIndex > txIndex && newTxIndex < config.NumOfTransactions {
+									if newTxIndex >= config.NumOfTransactions {
+										logger.WithError(err).WithFields(log.Fields{
+											"accIndex":           accountIdx,
+											"txIndex":            txIndex,
+											"initialAccSequence": initialSequence,
+											"expectedSequence":   expectedAccSeq,
+											"newSequence":        newTxIndex,
+											"transactions":       config.NumOfTransactions,
+										}).Debug("✅ Account sequence is past planned transactions, marking account done")
+										return nil
+									}
+
+									if newTxIndex > txIndex {
 										// chain is ahead of us, skip forward
 										txIndex = newTxIndex
 									} else {
@@ -501,7 +514,6 @@ func Stress(
 		return err
 	}
 
-	broadcastTxPace.Pause()
 	logger.WithFields(log.Fields{
 		"broadcastDuration": time.Since(startTs),
 	}).Info("Benchmark done 🎉")
