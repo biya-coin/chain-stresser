@@ -6,10 +6,28 @@ rm -rf chain-stresser-deploy
 NODE_NUM=4
 log_level="error"
 
-# 3. Set chain startup path
-# - If running on your own computer (e.g. MacOS, windows), you need to modify this path
-# - For example, BIYACHIAND="/Users/xiaoming/code/biyachain-core/bin/biyachaind"
-BIYACHIAND="/home/ubuntu/biyachain/biyachain-core/bin/biyachaind"
+# 3. Set chain startup path（自动按环境探测，无需手改）
+# 优先级：① 环境变量 BIYACHIAND（如 `BIYACHIAND=/x/biyachaind ./start.sh` 临时覆盖）
+#        ② 下面候选路径里【实际存在且可执行】的第一个（线上 Linux 路径 / 本地 Mac 路径各放一条）
+#        ③ 都没有则回退到 PATH 里的 biyachaind
+# 这样：线上跑命中线上路径、本地跑命中本地路径，start.sh 不用每次改。
+BIYACHIAND_CANDIDATES="
+/home/ubuntu/biyachain/biyachain-core/bin/biyachaind
+/Users/maxwelldu/github/biya/biyachain-core/bin/biyachaind
+"
+if [ -z "$BIYACHIAND" ]; then
+    for _cand in $BIYACHIAND_CANDIDATES; do
+        if [ -x "$_cand" ]; then BIYACHIAND="$_cand"; break; fi
+    done
+fi
+if [ -z "$BIYACHIAND" ]; then
+    BIYACHIAND="$(command -v biyachaind 2>/dev/null)"
+fi
+if [ -z "$BIYACHIAND" ] || [ ! -x "$BIYACHIAND" ]; then
+    echo "ERROR: 找不到 biyachaind 可执行文件。请用 BIYACHIAND=/path/to/biyachaind ./start.sh 指定，或把路径加进 BIYACHIAND_CANDIDATES。" >&2
+    exit 1
+fi
+echo "使用 biyachaind: $BIYACHIAND"
 
 # 4. The default startup parameters
 # - Optimistic execution enabled
@@ -18,7 +36,7 @@ optimistic_execution_enabled=true
 store_backend="seidb"
 seidb_enabled=true
 seidb_sc_backend="memiavl"
-seidb_ss_enable=true
+seidb_ss_enable=false
 seidb_ss_backend="pebbledb"
 # - Exchange
 # None for now

@@ -77,6 +77,36 @@ iavl-disable-fastnode = false
 app-db-backend = ""
 
 ###############################################################################
+###                    SeiDB / MemIAVL（P1 状态后端优化）                     ###
+###############################################################################
+# 用 memIAVL（内存 CoW 提交树 + 异步落盘）替换经典 iAVL 的同步提交，
+# 目标：把 WorkingHash(687ms)+iAVL commit(1035ms)=1722ms 从关键路径压到几百 ms 内。
+#
+# ⚠️ 共识关键：memIAVL 与 iAVL 的状态根计算实现不同。本配置由 stresser 全节点统一生成、
+#    全部走 memIAVL，故节点间一致；但 memIAVL 节点 与 iAVL 节点 不可混跑（app hash 不兼容）。
+#    上线前必须做：4 节点 + 重启 1 节点 的 app hash 逐块对账。
+
+[memiavl]
+# 主开关：true 即整链状态承诺改用 memIAVL（GetStoreConfig 会据此把 Backend 切到 SeiDB、SC=memiavl）
+enable = true
+# 异步提交缓冲：>0 时 commit 只更内存树+算根，落盘后台化（把 commit 移出关键路径）。压测设 100。
+async-commit-buffer = 100
+# 内存节点缓存（条目数）
+cache-size = 100000
+# 快照：保留最近 1 份、每 10000 块出一次（压测够用）
+snapshot-keep-recent = 1
+snapshot-interval = 10000
+# zero-copy 先关（更稳，mmap 零拷贝有额外约束，确认稳定后再开提速）
+zero-copy = false
+
+[seidb]
+enabled = true
+sc-backend = "memiavl"
+# 首测先不开历史 State-Store（压测不查历史状态），隔离验证 memIAVL 提交树本身。
+# 确认 memIAVL 稳定 + app hash 对账通过后，再开 ss-enable=true / ss-backend=pebbledb / ss-async-write-buffer 提历史查询性能。
+ss-enable = false
+
+###############################################################################
 ###                         Telemetry Configuration                         ###
 ###############################################################################
 

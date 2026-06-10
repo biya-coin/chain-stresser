@@ -2,6 +2,7 @@ package payload
 
 import (
 	"fmt"
+	"math/big"
 	"math/rand"
 	"time"
 
@@ -24,6 +25,7 @@ type exchangeSpotLimitOrdersProvider struct {
 	minGasPrice     sdk.Coin
 	maxGasLimit     uint64
 	memoAttach      string
+	depositDenoms   map[string]math.Int
 	logger          log.Logger
 }
 
@@ -45,11 +47,22 @@ func NewExchangeSpotLimitOrdersProvider(
 		ordersPerMarket = 1
 	}
 
+	// 非默认子账户(index=1)交易前预充值的金额，远超压测下单所需，避免 deposit 不足：
+	//   10,000,000 BYB  = 1e25 byb（base，SELL 单冻结）
+	//   10,000,000 USDT = 1e13 usdt（quote，BUY 单冻结）
+	depositDenoms := map[string]math.Int{
+		"byb": math.NewIntFromBigInt(
+			new(big.Int).Mul(big.NewInt(1), new(big.Int).Exp(big.NewInt(10), big.NewInt(25), nil)),
+		),
+		"peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360": math.NewInt(10_000_000_000_000),
+	}
+
 	provider := &exchangeSpotLimitOrdersProvider{
 		spotMarketIDs:   spotMarketIDs,
 		ordersPerMarket: ordersPerMarket,
 		minGasPrice:     parsedMinGasPrice,
 		maxGasLimit:     75000000,
+		depositDenoms:   depositDenoms,
 	}
 
 	provider.logger = log.WithFields(log.Fields{
@@ -67,9 +80,44 @@ func (p *exchangeSpotLimitOrdersProvider) Name() string {
 	return "exchange_spot_limit_orders_stress"
 }
 
-// GenerateInitialTx returns nil – accounts are assumed to have sufficient balance.
+// GenerateInitialTx 在压测正式开始前对每个账户调用一次（await=true）。
+// 发送多笔 MsgDeposit，把 byb / usdt 充值到账户的【非默认子账户 index=1】，
+// 这样下单/撮合/结算全程走交易所内部 deposit 账本，不触碰 bank 模块。
 func (p *exchangeSpotLimitOrdersProvider) GenerateInitialTx(req TxRequest) (Tx, error) {
-	return nil, nil
+	sender := req.From.Key.AccAddress()
+	// index=1：MsgDeposit 不允许充值到 default subaccount (index=0)
+	subaccountID := subaccount(req.From.Key.Address(), 1).Hex()
+
+	var msgs []sdk.Msg
+	for denom, amount := range p.depositDenoms {
+		msgs = append(msgs, &exchangev2types.MsgDeposit{
+			Sender:       string(sender),
+			SubaccountId: subaccountID,
+			Amount:       sdk.NewCoin(denom, amount),
+		})
+
+		p.logger.WithFields(log.Fields{
+			"sender":     string(sender),
+			"subaccount": subaccountID,
+			"denom":      denom,
+			"amount":     amount.String(),
+		}).Info("💰 Depositing to non-default subaccount before stress test")
+	}
+
+	if len(msgs) == 0 {
+		return nil, nil
+	}
+
+	tx := &exchangeSpotLimitOrderTx{
+		baseTx: baseTx{
+			from:    req.From,
+			msgs:    msgs,
+			fromIdx: req.FromIdx,
+			txIdx:   0,
+		},
+	}
+
+	return tx, nil
 }
 
 // GenerateTx creates a single MsgCreateSpotLimitOrder per call.
@@ -79,7 +127,8 @@ func (p *exchangeSpotLimitOrdersProvider) GenerateTx(req TxRequest) (Tx, error) 
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	sender := req.From.Key.AccAddress()
-	defaultSubaccountID := subaccount(req.From.Key.Address(), 0).Hex()
+	// index=1：非默认子账户，资金在交易所内部 deposit 账本，下单不触碰 bank
+	subaccountID := subaccount(req.From.Key.Address(), 1).Hex()
 
 	var msgs []sdk.Msg
 
@@ -114,7 +163,7 @@ func (p *exchangeSpotLimitOrdersProvider) GenerateTx(req TxRequest) (Tx, error) 
 					Price:        spotPrice,
 					Quantity:     quantity,
 					Cid:          cid,
-					SubaccountId: defaultSubaccountID,
+					SubaccountId: subaccountID,
 				},
 			},
 		}

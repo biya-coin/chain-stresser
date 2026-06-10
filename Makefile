@@ -115,29 +115,39 @@ run-exchange-spot-limit-orders:
 	--rate-tps 200
 
 # 四节点并发压测：同时向 instance 0-3 发限价单，全部完成后退出
-SPOT_MARKET_ID      ?= 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5
-STRESS_ACCOUNTS_NUM ?= 1000   
+STRESS_ACCOUNTS     ?= 1000
 STRESS_TRANSACTIONS ?= 10
-STRESS_RATE_TPS     ?= 60
+STRESS_RATE_TPS     ?= 100
+# 压测现货市场数：1（默认，市场 1）或 2（市场 1+2）。示例: make run-exchange-spot-limit-orders-4 STRESS_SPOT_MARKETS=2
+STRESS_SPOT_MARKETS     ?= 1
+STRESS_SPOT_MARKET_ID_1 ?= 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5
+STRESS_SPOT_MARKET_ID_2 ?= 0x181ce56d07b29b81d518bd98d06a6af30b7343e3782fb8a6bff79d72b52a72d7
+ifeq ($(STRESS_SPOT_MARKETS),2)
+STRESS_SPOT_MARKET_IDS := $(STRESS_SPOT_MARKET_ID_1),$(STRESS_SPOT_MARKET_ID_2)
+else ifeq ($(STRESS_SPOT_MARKETS),1)
+STRESS_SPOT_MARKET_IDS := $(STRESS_SPOT_MARKET_ID_1)
+else
+$(error STRESS_SPOT_MARKETS must be 1 or 2, got "$(STRESS_SPOT_MARKETS)")
+endif
 run-exchange-spot-limit-orders-4:
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/0/accounts.json \
-		--accounts-num $(STRESS_ACCOUNTS_NUM) \
-		--spot-market-ids $(SPOT_MARKET_ID) \
+		--accounts-num $(STRESS_ACCOUNTS) \
+		--spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
 		--node-addr 127.0.0.1:26657 --grpc-addr 127.0.0.1:9900 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/1/accounts.json \
-		--accounts-num $(STRESS_ACCOUNTS_NUM) \
-		--spot-market-ids $(SPOT_MARKET_ID) \
+		--accounts-num $(STRESS_ACCOUNTS) \
+		--spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
 		--node-addr 127.0.0.1:26757 --grpc-addr 127.0.0.1:10000 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/2/accounts.json \
-		--accounts-num $(STRESS_ACCOUNTS_NUM) \
-		--spot-market-ids $(SPOT_MARKET_ID) \
+		--accounts-num $(STRESS_ACCOUNTS) \
+		--spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
 		--node-addr 127.0.0.1:26857 --grpc-addr 127.0.0.1:10100 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	chain-stresser tx-exchange-spot-limit-orders --accounts ./chain-stresser-deploy/instances/3/accounts.json \
-		--accounts-num $(STRESS_ACCOUNTS_NUM) \
-		--spot-market-ids $(SPOT_MARKET_ID) \
+		--accounts-num $(STRESS_ACCOUNTS) \
+		--spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
 		--node-addr 127.0.0.1:26957 --grpc-addr 127.0.0.1:10200 \
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	wait
