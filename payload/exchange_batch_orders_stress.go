@@ -197,17 +197,11 @@ func (p *exchangeBatchOrdersProvider) BuildAndSignTx(
 	client chain.Client,
 	unsignedTx Tx,
 ) (signedTx Tx, err error) {
-	minGasPriceAmount := p.minGasPrice.Amount
-	maxFeeAmount := minGasPriceAmount.Mul(math.NewIntFromUint64(p.maxGasLimit))
-
 	chainTx := chain.Tx{
 		Msgs:     unsignedTx.Msgs(),
 		GasLimit: p.maxGasLimit,
-		Fee: sdk.NewCoins(sdk.NewCoin(
-			p.minGasPrice.Denom,
-			maxFeeAmount,
-		)),
-		Memo: p.memoAttach,
+		Fee:      sdk.Coins{},
+		Memo:     p.memoAttach,
 	}
 
 	signedResult, err := client.BuildAndSignTx(unsignedTx.From(), chainTx)
