@@ -47,21 +47,16 @@ func NewExchangeSpotLimitOrdersProvider(
 		ordersPerMarket = 1
 	}
 
-	// 非默认子账户(index=1)交易前预充值的金额，远超压测下单所需，避免 deposit 不足：
-	//   10,000,000 BYB  = 1e25 byb（base，SELL 单冻结）
-	//   10,000,000 USDT = 1e13 usdt（quote，BUY 单冻结）
-	depositDenoms := map[string]math.Int{
-		"byb": math.NewIntFromBigInt(
-			new(big.Int).Mul(big.NewInt(1), new(big.Int).Exp(big.NewInt(10), big.NewInt(25), nil)),
-		),
-		"peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360": math.NewInt(10_000_000_000_000),
+	depositDenoms, err := spotLimitDepositDenoms(spotMarketIDs)
+	if err != nil {
+		return nil, err
 	}
 
 	provider := &exchangeSpotLimitOrdersProvider{
 		spotMarketIDs:   spotMarketIDs,
 		ordersPerMarket: ordersPerMarket,
 		minGasPrice:     parsedMinGasPrice,
-		maxGasLimit:     75000000,
+		maxGasLimit:     800000,
 		depositDenoms:   depositDenoms,
 	}
 
@@ -70,6 +65,92 @@ func NewExchangeSpotLimitOrdersProvider(
 	})
 
 	return provider, nil
+}
+
+type spotLimitMarketDenoms struct {
+	base  string
+	quote string
+}
+
+var spotLimitKnownMarkets = map[string]spotLimitMarketDenoms{
+	"0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5": {
+		base:  "byb",
+		quote: "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360",
+	},
+	"0x754e40e2ad281abfe097072e7f266a2526a1180986ee7dbdf0ed9b85ffcff197": {
+		base:  "byb",
+		quote: "peggy0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+	},
+	"0x675762bbc9e772197c6ca5deeea18d98f36c254e315d17a9fe0fc667c947cc03": {
+		base:  "peggy0xB62132e35a6c13ee1EE0f84dC5d40bad8d815206",
+		quote: "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360",
+	},
+	"0x2bc2d9cc26226b8cfc2fe0112c9ca34a3226c59d9f2ea1003fa1f0d01d0b6920": {
+		base:  "peggy0xB62132e35a6c13ee1EE0f84dC5d40bad8d815206",
+		quote: "peggy0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+	},
+	"0xd084cb604a71fc447ef54a31bc5f73b6e9e99dd23b7c4e70794cb3d2e21b16cc": {
+		base:  "peggy0xa8c8CfB141A3bB59FEA1E2ea6B79b5ECBCD7b6ca",
+		quote: "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360",
+	},
+	"0xeb8abf12402a28a6636b12ad9f6b86c4af4d2de077e254fd57b01b980febcdd9": {
+		base:  "peggy0xa8c8CfB141A3bB59FEA1E2ea6B79b5ECBCD7b6ca",
+		quote: "peggy0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+	},
+	"0x6246a12dd083039f1e073cb75c0a6179da74ea6f2bcdb9f178e071c45057d469": {
+		base:  "peggy0x967da4048cD07aB37855c090aAF366e4ce1b9F48",
+		quote: "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360",
+	},
+	"0xe37754a183987825a0d40c1a85570cca19cab15dd4bb54f87036a5ffbbf742cf": {
+		base:  "peggy0x967da4048cD07aB37855c090aAF366e4ce1b9F48",
+		quote: "peggy0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+	},
+	"0x181ce56d07b29b81d518bd98d06a6af30b7343e3782fb8a6bff79d72b52a72d7": {
+		base:  "peggy0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+		quote: "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360",
+	},
+	"0x7c9e6539b5d0ddfd9993948e54f1cec8ac2d0330e76851fd3d78d4fdccbf20ec": {
+		base:  "peggy0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+		quote: "peggy0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+	},
+	"0x13383dad4f39d8ffa52342189a3cff4a7f414d87d83ab3f37e46aa5e1dbe7970": {
+		base:  "peggy0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+		quote: "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360",
+	},
+	"0xe265de61063726675da1d6dbf0dc0360fe9ba96e8d6499f8aa5016f451bc41f3": {
+		base:  "peggy0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+		quote: "peggy0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+	},
+}
+
+func spotLimitDepositDenoms(spotMarketIDs []string) (map[string]math.Int, error) {
+	if len(spotMarketIDs) == 0 {
+		return nil, errors.New("no spot market IDs configured")
+	}
+
+	depositDenoms := make(map[string]math.Int, len(spotMarketIDs)*2)
+	for _, marketID := range spotMarketIDs {
+		denoms, ok := spotLimitKnownMarkets[marketID]
+		if !ok {
+			return nil, errors.Errorf("unknown spot market ID %s; add its base/quote denoms to spotLimitKnownMarkets", marketID)
+		}
+		depositDenoms[denoms.base] = spotLimitDepositAmount(denoms.base)
+		depositDenoms[denoms.quote] = spotLimitDepositAmount(denoms.quote)
+	}
+
+	return depositDenoms, nil
+}
+
+func spotLimitDepositAmount(denom string) math.Int {
+	switch denom {
+	case "byb":
+		return math.NewIntFromBigInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(25), nil))
+	case "peggy0x3de4027B5b0Bf278Db2D187768AC441e9B356360",
+		"peggy0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238":
+		return math.NewInt(10_000_000_000_000)
+	default:
+		return math.NewIntFromBigInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(23), nil))
+	}
 }
 
 type exchangeSpotLimitOrderTx struct {

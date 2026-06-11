@@ -55,8 +55,13 @@ type StressConfig struct {
 	RateLimit ratelimit.Config
 }
 
-// maxParallelPreStressBroadcasts is the maximum number of pre-stress txs to broadcast in parallel.
-const maxParallelPreStressBroadcasts = 8
+const (
+	// maxParallelInitialBroadcasts limits setup txs that must wait for on-chain confirmation.
+	maxParallelInitialBroadcasts = 8
+
+	// maxParallelPreStressBroadcasts is the maximum number of pre-stress txs to broadcast in parallel.
+	maxParallelPreStressBroadcasts = 8
+)
 
 // handleFallbackBroadcast attempts to broadcast the original transaction when fuzzed transaction fails
 func handleFallbackBroadcast(
@@ -754,7 +759,18 @@ func createAndBroadcastInitialTxs(
 		}).Debugln("✅ Generated initial txs to broadcast")
 	}
 
-	pool := workerpool.New(len(initialTxs))
+	maxWorkers := min(len(initialTxs), maxParallelInitialBroadcasts)
+	logger.WithFields(log.Fields{
+		"num":         len(initialTxs),
+		"parallelism": maxWorkers,
+	}).Infoln("📋 Broadcasting initial setup txs...")
+
+	pool := workerpool.New(maxWorkers)
+	var (
+		failedInitialTxs int
+		firstErr         error
+		errMux           sync.Mutex
+	)
 
 	for _, initialTx := range initialTxs {
 		initialTx := initialTx
@@ -796,11 +812,22 @@ func createAndBroadcastInitialTxs(
 				retry.MaxDelay(5*time.Second),
 			); err != nil {
 				logger.WithError(err).Error("❌ All attempts to broadcast initial Tx failed")
+				errMux.Lock()
+				failedInitialTxs++
+				if firstErr == nil {
+					firstErr = err
+				}
+				errMux.Unlock()
 			}
 		})
 	}
 
 	pool.StopWait()
+
+	if firstErr != nil {
+		return errors.Wrapf(firstErr, "❌ %d initial setup tx(s) failed", failedInitialTxs)
+	}
+
 	logger.Infoln("✅ All initial deposits confirmed on-chain")
 
 	return nil
@@ -874,7 +901,13 @@ func createAndBroadcastPreStressTxs(
 		"num": len(preTxs),
 	}).Infoln("📋 Broadcasting pre-stress maker orders...")
 
-	pool := workerpool.New(maxParallelPreStressBroadcasts)
+	maxWorkers := min(len(preTxs), maxParallelPreStressBroadcasts)
+	pool := workerpool.New(maxWorkers)
+	var (
+		failedPreStressTxs int
+		firstErr           error
+		errMux             sync.Mutex
+	)
 
 	for _, preTx := range preTxs {
 		preTx := preTx
@@ -911,11 +944,22 @@ func createAndBroadcastPreStressTxs(
 				retry.MaxDelay(5*time.Second),
 			); err != nil {
 				logger.WithError(err).Error("❌ All attempts to broadcast pre-stress Tx failed")
+				errMux.Lock()
+				failedPreStressTxs++
+				if firstErr == nil {
+					firstErr = err
+				}
+				errMux.Unlock()
 			}
 		})
 	}
 
 	pool.StopWait()
+
+	if firstErr != nil {
+		return errors.Wrapf(firstErr, "❌ %d pre-stress tx(s) failed", failedPreStressTxs)
+	}
+
 	logger.Infoln("✅ Pre-stress maker orders confirmed on-chain")
 
 	return nil
