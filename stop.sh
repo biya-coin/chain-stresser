@@ -19,6 +19,9 @@ for i in 0 1 2 3; do
     fi
 done
 
+echo "Stopping chain-stresser benchmark processes..."
+pkill -f "chain-stresser tx-" 2>/dev/null || true
+
 rm -rf chain-stresser-deploy
 rm -rf node-log/*
 
