@@ -12,7 +12,7 @@ log_level="error"
 #        ③ 都没有则回退到 PATH 里的 biyachaind
 # 这样：线上跑命中线上路径、本地跑命中本地路径，start.sh 不用每次改。
 BIYACHIAND_CANDIDATES="
-/home/ubuntu/biyachain/biyachain-core/bin/biyachaind
+/Users/levi/code/work/biya/code/biya-chain/biyachain-core/bin/biyachaind
 /Users/maxwelldu/github/biya/biyachain-core/bin/biyachaind
 "
 if [ -z "$BIYACHIAND" ]; then
@@ -32,6 +32,8 @@ echo "使用 biyachaind: $BIYACHIAND"
 # 4. The default startup parameters
 # - Optimistic execution enabled
 optimistic_execution_enabled=true
+# - CometBFT logging: true -> enable; false -> only errors are logged, others will be ignored, no performance overhead
+comet_log_enabled=true
 # - SeiDB settings
 store_backend="seidb"
 seidb_enabled=true
@@ -54,6 +56,7 @@ for i in $(seq 0 $(($NODE_NUM - 1))); do
     NODE_HOME="$VALIDATOR_DIR/$i"
     $BIYACHIAND --home="$NODE_HOME" \
         --optimistic-execution-enabled=$optimistic_execution_enabled \
+        --comet-log-enabled=$comet_log_enabled \
         --log-level=$log_level \
         --store.backend="$store_backend" \
         --seidb.enabled=$seidb_enabled \
