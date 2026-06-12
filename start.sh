@@ -12,7 +12,7 @@ log_level="error"
 #        ③ 都没有则回退到 PATH 里的 biyachaind
 # 这样：线上跑命中线上路径、本地跑命中本地路径，start.sh 不用每次改。
 BIYACHIAND_CANDIDATES="
-/Users/levi/code/work/biya/code/biya-chain/biyachain-core/bin/biyachaind
+/home/ubuntu/biyachain/biyachain-core/bin/biyachaind
 /Users/maxwelldu/github/biya/biyachain-core/bin/biyachaind
 "
 if [ -z "$BIYACHIAND" ]; then
