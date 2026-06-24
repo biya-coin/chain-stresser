@@ -231,12 +231,12 @@ func (p *exchangeBatchOrdersProvider) GenerateInitialTx(
 			Amount:       sdk.NewCoin(denom, amount),
 		})
 
-		p.logger.WithFields(log.Fields{
-			"sender":     string(sender),
-			"subaccount": subaccountID,
-			"denom":      denom,
-			"amount":     amount.String(),
-		}).Info("💰 Depositing to non-default subaccount before stress test")
+		// p.logger.WithFields(log.Fields{
+		// 	"sender":     string(sender),
+		// 	"subaccount": subaccountID,
+		// 	"denom":      denom,
+		// 	"amount":     amount.String(),
+		// }).Info("💰 Depositing to non-default subaccount before stress test")
 	}
 
 	if len(msgs) == 0 {
