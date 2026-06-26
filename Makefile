@@ -152,19 +152,37 @@ run-exchange-spot-limit-orders-4:
 		--await=false --transactions $(STRESS_TRANSACTIONS) --rate-tps $(STRESS_RATE_TPS) & \
 	wait
 
-# monad 限价单：
-# 	1. 修改account.json的路径
-#   2. 修改端口为26657和19900
+MONAD_ROOT          ?= /home/cyyu/monad-bft
+MONAD_ACCOUNTS_NUM  ?= 250
+MONAD_TRANSACTIONS  ?= 100
+MONAD_RATE_TPS      ?= 1000
+MONAD_CHAIN_ID      ?= biyachain-1
+MONAD_INSTANCES_DIR ?= $(MONAD_ROOT)/.monad/instances
+
+# monad 四节点限价单：使用 mult-run.sh 生成的 instances/0..3/accounts.json，分别打到四个 RPC/feed。
 run-exchange-spot-limit-orders-monad:
-	chain-stresser tx-exchange-spot-limit-orders --accounts /home/cyyu/monad-bft/.monad/instances/0/accounts.json \
-	--accounts-num 1000 \
-	--spot-market-ids 0xb322bce686ec25364be50728812e33741da1d82e9c91c2c89b91b91d26b0e9c5 \
-	--node-addr 127.0.0.1:26657 \
-	--grpc-addr 127.0.0.1:19900 \
-	--chain-id biyachain-1 \
-	--await=false \
-	--transactions 50 \
-	--rate-tps 300
+	@test -f "$(MONAD_INSTANCES_DIR)/0/accounts.json" || (echo "missing $(MONAD_INSTANCES_DIR)/0/accounts.json; run $(MONAD_ROOT)/scripts/mult-run.sh first" >&2; exit 1)
+	@test -f "$(MONAD_INSTANCES_DIR)/1/accounts.json" || (echo "missing $(MONAD_INSTANCES_DIR)/1/accounts.json; run $(MONAD_ROOT)/scripts/mult-run.sh first" >&2; exit 1)
+	@test -f "$(MONAD_INSTANCES_DIR)/2/accounts.json" || (echo "missing $(MONAD_INSTANCES_DIR)/2/accounts.json; run $(MONAD_ROOT)/scripts/mult-run.sh first" >&2; exit 1)
+	@test -f "$(MONAD_INSTANCES_DIR)/3/accounts.json" || (echo "missing $(MONAD_INSTANCES_DIR)/3/accounts.json; run $(MONAD_ROOT)/scripts/mult-run.sh first" >&2; exit 1)
+	@set -e; \
+	chain-stresser tx-exchange-spot-limit-orders --accounts "$(MONAD_INSTANCES_DIR)/0/accounts.json" \
+		--accounts-num $(MONAD_ACCOUNTS_NUM) --spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
+		--node-addr 127.0.0.1:26657 --grpc-addr 127.0.0.1:19900 \
+		--chain-id $(MONAD_CHAIN_ID) --await=false --transactions $(MONAD_TRANSACTIONS) --rate-tps $(MONAD_RATE_TPS) & \
+	chain-stresser tx-exchange-spot-limit-orders --accounts "$(MONAD_INSTANCES_DIR)/1/accounts.json" \
+		--accounts-num $(MONAD_ACCOUNTS_NUM) --spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
+		--node-addr 127.0.0.1:26667 --grpc-addr 127.0.0.1:29900 \
+		--chain-id $(MONAD_CHAIN_ID) --await=false --transactions $(MONAD_TRANSACTIONS) --rate-tps $(MONAD_RATE_TPS) & \
+	chain-stresser tx-exchange-spot-limit-orders --accounts "$(MONAD_INSTANCES_DIR)/2/accounts.json" \
+		--accounts-num $(MONAD_ACCOUNTS_NUM) --spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
+		--node-addr 127.0.0.1:26677 --grpc-addr 127.0.0.1:39900 \
+		--chain-id $(MONAD_CHAIN_ID) --await=false --transactions $(MONAD_TRANSACTIONS) --rate-tps $(MONAD_RATE_TPS) & \
+	chain-stresser tx-exchange-spot-limit-orders --accounts "$(MONAD_INSTANCES_DIR)/3/accounts.json" \
+		--accounts-num $(MONAD_ACCOUNTS_NUM) --spot-market-ids $(STRESS_SPOT_MARKET_IDS) \
+		--node-addr 127.0.0.1:26687 --grpc-addr 127.0.0.1:49900 \
+		--chain-id $(MONAD_CHAIN_ID) --await=false --transactions $(MONAD_TRANSACTIONS) --rate-tps $(MONAD_RATE_TPS) & \
+	wait
 
 run-wasm-store-code:
 	chain-stresser tx-wasm-store-code --accounts ./chain-stresser-deploy/instances/0/accounts.json --accounts-num 1000
